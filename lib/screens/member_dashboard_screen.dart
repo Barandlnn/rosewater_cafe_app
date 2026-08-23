@@ -3,6 +3,7 @@ import 'door_access_screen.dart';
 import 'event_reservation_screen.dart';
 import 'notifications_screen.dart';
 import '../services/notification_store.dart';
+import 'profile_screen.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   final DateTime registrationDate;
@@ -863,9 +864,10 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                 isActive: false,
                 width: 68,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Profile screen will be connected later'),
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
                     ),
                   );
                 },

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-
 import 'door_access_screen.dart';
 import 'event_reservation_screen.dart';
 import 'member_dashboard_screen.dart';
 import 'notifications_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,9 +13,10 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final String _memberName = 'Demo User';
-  final String _email = '1@gmail.com';
-  final String _phone = '+1 (555) 123-4567';
+  String _memberName = 'Demo User';
+  String _email = '1@gmail.com';
+  String _phone = '+1 (555) 123-4567';
+
   final String _memberId = '1768389549045';
   final String _membershipPlan = 'Premium';
 
@@ -238,8 +239,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       height: 52,
       child: OutlinedButton.icon(
-        onPressed: () {
-          _showComingSoon('Edit Profile');
+        onPressed: () async {
+          final updatedProfile = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EditProfileScreen(
+                initialName: _memberName,
+                initialEmail: _email,
+                initialPhone: _phone,
+                memberId: _memberId,
+                membershipPlan: _membershipPlan,
+              ),
+            ),
+          );
+          if (updatedProfile == null) {
+            return;
+          }
+          if (!mounted) {
+            return;
+          }
+
+          setState(() {
+            _memberName = updatedProfile['name'];
+            _email = updatedProfile['email'];
+            _phone = updatedProfile['phone'];
+          });
         },
         icon: const Icon(Icons.person_outline, size: 18),
         label: const Text(
@@ -428,24 +452,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      minLeadingWidth: 24,
-      leading: Icon(icon, size: 22, color: const Color(0xFF4A5565)),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: Color(0xFF1E2939),
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, size: 20, color: const Color(0xFF4A5565)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF1E2939),
+          ),
         ),
+        trailing: const Icon(
+          Icons.chevron_right,
+          size: 20,
+          color: Color(0xFF94A3B8),
+        ),
+        onTap: onTap,
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        size: 22,
-        color: Color(0xFF6A7282),
-      ),
-      onTap: onTap,
     );
   }
 
