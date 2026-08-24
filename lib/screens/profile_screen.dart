@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'door_access_screen.dart';
 import 'event_reservation_screen.dart';
 import 'member_dashboard_screen.dart';
-import 'notifications_screen.dart';
 import 'edit_profile_screen.dart';
+import 'payment_methods_screen.dart';
+import 'notification_settings_screen.dart';
+import 'privacy_security_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -411,16 +413,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSettingsTile(
             icon: Icons.credit_card_outlined,
             title: 'Payment Methods',
-            onTap: () => _showComingSoon('Payment Methods'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PaymentMethodsScreen(),
+                ),
+              );
+            },
           ),
 
+          const SizedBox(height: 8),
+
           _buildSettingsTile(
-            icon: Icons.notifications_none,
+            icon: Icons.notifications_outlined,
             title: 'Notifications',
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsScreen(),
+                ),
               );
             },
           ),
@@ -428,7 +441,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildSettingsTile(
             icon: Icons.shield_outlined,
             title: 'Privacy & Security',
-            onTap: () => _showComingSoon('Privacy & Security'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PrivacySecurityScreen(),
+                ),
+              );
+            },
           ),
 
           _buildSettingsTile(
