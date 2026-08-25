@@ -6,6 +6,8 @@ import 'edit_profile_screen.dart';
 import 'payment_methods_screen.dart';
 import 'notification_settings_screen.dart';
 import 'privacy_security_screen.dart';
+import 'help_support_screen.dart';
+import 'app_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -450,17 +452,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
-
           _buildSettingsTile(
             icon: Icons.help_outline,
             title: 'Help & Support',
-            onTap: () => _showComingSoon('Help & Support'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HelpSupportScreen(),
+                ),
+              );
+            },
           ),
-
           _buildSettingsTile(
             icon: Icons.settings_outlined,
             title: 'App Settings',
-            onTap: () => _showComingSoon('App Settings'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AppSettingsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
