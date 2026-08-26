@@ -4,6 +4,7 @@ import 'event_reservation_screen.dart';
 import 'notifications_screen.dart';
 import '../services/notification_store.dart';
 import 'profile_screen.dart';
+import 'welcome_screen.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   final DateTime registrationDate;
@@ -524,13 +525,14 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(8),
-                                onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Logout will be connected with Firebase later',
-                                      ),
+                              onTap: () {
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const WelcomeScreen(),
                                     ),
+                                    (route) => false,
                                   );
                                 },
                                 child: const SizedBox(
@@ -849,14 +851,14 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                 isActive: false,
                 width: 70,
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Events screen will be connected next'),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EventReservationScreen(),
                     ),
                   );
                 },
               ),
-
               // Profile
               _buildBottomNavItem(
                 icon: Icons.person_outline,
