@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "985930394568",
+    "project_id": "rosewater-cafe-app",
+    "storage_bucket": "rosewater-cafe-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:985930394568:android:f0160cecd933641b28aefd",
+        "android_client_info": {
+          "package_name": "com.example.rosewater_cafe_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPFbLWIOU1kmmh85imKY-eIgnPGHyfqN0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

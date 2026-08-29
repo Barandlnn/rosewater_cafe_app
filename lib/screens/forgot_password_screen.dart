@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -10,10 +13,75 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
 
+  bool _isLoading = false;
+
   @override
   void dispose() {
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await AuthService.resetPassword(email: email);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset link sent. Please check your email.'),
+        ),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      String message = 'Unable to send password reset email.';
+
+      if (error.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (error.code == 'too-many-requests') {
+        message = 'Too many requests. Please try again later.';
+      } else if (error.code == 'network-request-failed') {
+        message = 'Please check your internet connection.';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -80,7 +148,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ),
                         SizedBox(height: 24),
                         Text(
-                          "No worries! Enter your email address\nand we'll send you a verification\ncode to reset your password.",
+                          "No worries! Enter your email address\nand we'll send you a password reset\nlink.",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
@@ -130,38 +198,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ),
                             ),
                             child: TextButton(
-                              onPressed: () {
-                                final email = _emailController.text.trim();
-
-                                if (email.isEmpty ||
-                                    !email.contains('@') ||
-                                    !email.contains('.')) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please enter a valid email address.',
+                              onPressed: _isLoading ? null : _resetPassword,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Send Reset Link',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  );
-                                  return;
-                                }
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Verification code request sent',
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Send Verification Code',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
                             ),
                           ),
                         ),

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../services/auth_service.dart';
 import 'forgot_password_screen.dart';
+import 'member_dashboard_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -11,6 +15,7 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
+  bool _isLoading = false;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -20,6 +25,81 @@ class _SignInScreenState extends State<SignInScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signIn() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
+
+    if (password.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 8 characters.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await AuthService.signIn(email: email, password: password);
+
+      if (!mounted) {
+        return;
+      }
+
+     Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => MemberDashboardScreen()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      String message = 'Sign in failed. Please try again.';
+
+      if (error.code == 'invalid-credential') {
+        message = 'Incorrect email or password.';
+      } else if (error.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (error.code == 'user-disabled') {
+        message = 'This account has been disabled.';
+      } else if (error.code == 'too-many-requests') {
+        message = 'Too many attempts. Please try again later.';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -222,62 +302,28 @@ class _SignInScreenState extends State<SignInScreen> {
                               ),
                             ),
                             child: TextButton(
-                              onPressed: () {
-                                final email = _emailController.text.trim();
-                                final password = _passwordController.text;
-
-                                if (email.isEmpty ||
-                                    !email.contains('@') ||
-                                    !email.contains('.')) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please enter a valid email address.',
+                              onPressed: _isLoading ? null : _signIn,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Sign In',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  );
-                                  return;
-                                }
-
-                                if (password.length < 8) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Password must be at least 8 characters.',
-                                      ),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Sign in successful — demo mode',
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Sign In',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 56),
-                        const Text(
-                          'Demo: Use any email and password to\nsign in',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF4A5565),
-                          ),
-                        ),
                       ],
                     ),
                   ),

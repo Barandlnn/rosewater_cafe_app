@@ -5,6 +5,7 @@ import 'notifications_screen.dart';
 import '../services/notification_store.dart';
 import 'profile_screen.dart';
 import 'welcome_screen.dart';
+import '../services/auth_service.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   final DateTime registrationDate;
@@ -407,6 +408,30 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    try {
+      await AuthService.signOut();
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logout failed. Please try again.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -525,16 +550,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(8),
-                              onTap: () {
-                                  Navigator.pushAndRemoveUntil(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const WelcomeScreen(),
-                                    ),
-                                    (route) => false,
-                                  );
-                                },
+                                onTap: _logout,
                                 child: const SizedBox(
                                   width: 102,
                                   height: 36,

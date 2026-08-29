@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:rosewater_cafe_app/services/auth_service.dart';
+
 import 'signin_screen.dart';
 import 'membership_screen.dart';
 
@@ -13,6 +15,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _hasAcceptedTerms = false;
+  bool _isLoading = false;
+
 
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
@@ -29,6 +33,60 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _createAccount() async {
+    if (!_hasAcceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please accept the Terms of Service and Privacy Policy.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final isFormValid = _formKey.currentState?.validate() ?? false;
+
+    if (!isFormValid) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await AuthService.signUp(
+        name: _fullNameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MembershipScreen()),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Account creation failed: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -418,38 +476,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             width: double.infinity,
                             height: 48,
                             child: TextButton(
-                              onPressed: () {
-                                if (!_hasAcceptedTerms) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please accept the Terms of Service and Privacy Policy.',
+                              onPressed: _isLoading ? null : _createAccount,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Create Account',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                  );
-                                  return;
-                                }
-                                if (!(_formKey.currentState?.validate() ??
-                                    false)) {
-                                  return;
-                                }
-
-                               Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const MembershipScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Create Account',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
                             ),
                           ),
                         ),
