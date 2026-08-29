@@ -8,6 +8,8 @@ import 'notification_settings_screen.dart';
 import 'privacy_security_screen.dart';
 import 'help_support_screen.dart';
 import 'app_settings_screen.dart';
+import '../services/auth_service.dart';
+import 'auth_gate.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -34,8 +36,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _signOut() {
-    _showComingSoon('Sign Out');
+  Future<void> _signOut() async {
+    try {
+      await AuthService.signOut();
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const AuthGate()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign out failed. Please try again.')),
+      );
+    }
   }
 
   // ------------------------------------------------------------
