@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rosewater_cafe_app/services/auth_service.dart';
+import 'package:rosewater_cafe_app/services/user_service.dart';
 
 import 'signin_screen.dart';
 import 'membership_screen.dart';
@@ -16,7 +17,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _hasAcceptedTerms = false;
   bool _isLoading = false;
-
 
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
@@ -58,10 +58,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
-      await AuthService.signUp(
+      final credential = await AuthService.signUp(
         name: _fullNameController.text,
         email: _emailController.text,
         password: _passwordController.text,
+      );
+
+      await UserService.createUserProfile(
+        uid: credential.user!.uid,
+        fullName: _fullNameController.text,
+        email: _emailController.text,
+        phone: _phoneController.text,
       );
 
       if (!mounted) {
