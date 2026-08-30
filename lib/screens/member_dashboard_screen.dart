@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/membership_service.dart';
+import '../services/usage_service.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   final DateTime registrationDate;
@@ -27,12 +28,16 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
   String _validUntil = '-';
   int _maxGuests = 0;
 
+  int _hookahUsed = 0;
+  int _drinksUsed = 0;
+
   @override
   void initState() {
     super.initState();
 
     _loadUserProfile();
     _loadMembership();
+    _loadUsage();
   }
 
   Future<void> _loadUserProfile() async {
@@ -95,22 +100,82 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     });
   }
 
+  Future<void> _loadUsage() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    var usage = await UsageService.getCurrentUsage(uid: user.uid);
+
+    if (usage == null) {
+      await UsageService.createMonthlyUsage(uid: user.uid);
+
+      usage = await UsageService.getCurrentUsage(uid: user.uid);
+    }
+
+    if (usage == null) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _hookahUsed = usage?['hookahUsed'] as int? ?? 0;
+
+      _drinksUsed = usage?['drinksUsed'] as int? ?? 0;
+    });
+  }
+
+  int? get _monthlyAllowanceTotal {
+    switch (_membershipPlan) {
+      case 'Basic':
+        return 10;
+
+      case 'Premium':
+        return 20;
+
+      case 'VIP':
+        return null;
+
+      default:
+        return 0;
+    }
+  }
+
   int get _notificationCount => NotificationStore.unreadCount;
 
   // Hookah Sessions ve Drinks kartları için ortak yapı.
   Widget _buildAllowanceCard({
     required String title,
-    required int remaining,
-    required int total,
+    required int used,
+    required int? total,
     required IconData icon,
     required Color iconColor,
     required Color iconBackgroundColor,
   }) {
-    final int used = total - remaining;
+    final bool isUnlimited = total == null;
 
-    final double remainingRatio = total == 0
+    final int remaining = total == null
+        ? 0
+        : (total - used).clamp(0, total).toInt();
+
+    final double remainingRatio = total == null
+        ? 1.0
+        : total == 0
         ? 0
         : (remaining / total).clamp(0.0, 1.0).toDouble();
+
+    final String allowanceText = isUnlimited
+        ? 'Unlimited'
+        : '$remaining / $total';
+
+    final String usageText = isUnlimited
+        ? 'Unlimited monthly access'
+        : '$used used this\nmonth';
 
     return Container(
       width: double.infinity,
@@ -158,7 +223,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      '$remaining / $total',
+                      allowanceText,
                       style: const TextStyle(
                         color: Color(0xFF1E2939),
                         fontSize: 22,
@@ -194,7 +259,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
 
           // Monthly usage
           Text(
-            '$used used this\nmonth',
+            usageText,
             style: const TextStyle(
               color: Color(0xFF6A7282),
               fontSize: 12,
@@ -840,8 +905,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
               // Hookah Sessions
               _buildAllowanceCard(
                 title: 'Hookah Sessions',
-                remaining: 15,
-                total: 20,
+                used: _hookahUsed,
+                total: _monthlyAllowanceTotal,
                 icon: Icons.smoking_rooms_outlined,
                 iconColor: const Color(0xFFF54900),
                 iconBackgroundColor: const Color(0xFFFFEDD4),
@@ -852,8 +917,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
               // Drinks
               _buildAllowanceCard(
                 title: 'Drinks',
-                remaining: 18,
-                total: 20,
+                used: _drinksUsed,
+                total: _monthlyAllowanceTotal,
                 icon: Icons.local_cafe_outlined,
                 iconColor: const Color(0xFF155DFC),
                 iconBackgroundColor: const Color(0xFFDBEAFE),
