@@ -1,6 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../services/event_service.dart';
+import '../services/reservation_service.dart';
 import 'reservation_confirmed_screen.dart';
 
 class EventReservationScreen extends StatefulWidget {
@@ -15,6 +18,8 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
   int _minGuests = 5;
   int _maxGuests = 100;
 
+  String _currency = 'USD';
+
   String _eventDescription =
       'Book the café for your private event. Perfect for parties, meetings, and special occasions.';
 
@@ -27,6 +32,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
   ];
 
   bool _isEventActive = true;
+  bool _isSubmitting = false;
 
   final TextEditingController _eventTypeController = TextEditingController();
 
@@ -51,11 +57,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
   Future<void> _loadEvent() async {
     final event = await EventService.getPrivateEvent();
 
-    if (event == null) {
-      return;
-    }
-
-    if (!mounted) {
+    if (event == null || !mounted) {
       return;
     }
 
@@ -67,6 +69,8 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       _minGuests = (event['minGuests'] as num?)?.toInt() ?? _minGuests;
 
       _maxGuests = (event['maxGuests'] as num?)?.toInt() ?? _maxGuests;
+
+      _currency = event['currency'] as String? ?? _currency;
 
       _eventDescription = event['description'] as String? ?? _eventDescription;
 
@@ -88,6 +92,23 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
 
   double get _estimatedTotal {
     return _baseRate * _duration;
+  }
+
+  String get _currencySymbol {
+    switch (_currency) {
+      case 'EUR':
+        return '€';
+
+      case 'GBP':
+        return '£';
+
+      case 'TRY':
+        return '₺';
+
+      case 'USD':
+      default:
+        return '\$';
+    }
   }
 
   String get _formattedDate {
@@ -119,7 +140,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       lastDate: DateTime(now.year + 2),
     );
 
-    if (pickedDate == null) {
+    if (pickedDate == null || !mounted) {
       return;
     }
 
@@ -134,7 +155,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       initialTime: TimeOfDay.now(),
     );
 
-    if (pickedTime == null) {
+    if (pickedTime == null || !mounted) {
       return;
     }
 
@@ -143,13 +164,19 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
     });
   }
 
-  void _confirmReservation() {
+  Future<void> _confirmReservation() async {
+    if (_isSubmitting) {
+      return;
+    }
+
     if (!_isEventActive) {
       _showMessage('Event reservations are currently unavailable');
       return;
     }
 
-    if (_eventTypeController.text.trim().isEmpty) {
+    final eventType = _eventTypeController.text.trim();
+
+    if (eventType.isEmpty) {
       _showMessage('Please enter an event type');
       return;
     }
@@ -174,17 +201,82 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReservationConfirmedScreen(
-          date: _selectedDate!,
-          time: _selectedTime!,
-          duration: _duration,
-          guestCount: _guestCount,
-        ),
-      ),
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      _showMessage('You must be signed in to make a reservation');
+      return;
+    }
+
+    final eventDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
     );
+
+    if (!eventDateTime.isAfter(DateTime.now())) {
+      _showMessage('Please select a future date and time');
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await ReservationService.createReservation(
+        uid: user.uid,
+        eventType: eventType,
+        eventDateTime: eventDateTime,
+        duration: _duration,
+        guestCount: _guestCount,
+        baseRate: _baseRate,
+        estimatedTotal: _estimatedTotal,
+        currency: _currency,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ReservationConfirmedScreen(
+            date: _selectedDate!,
+            time: _selectedTime!,
+            duration: _duration,
+            guestCount: _guestCount,
+          ),
+        ),
+      );
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      _showMessage('Reservation could not be created (${error.code}).');
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      _showMessage('Reservation could not be created. Please try again.');
+    }
   }
 
   void _showMessage(String message) {
@@ -324,7 +416,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
         children: [
           _buildPriceRow(
             'Base rate (per hour)',
-            '\$${_baseRate.toStringAsFixed(0)}',
+            '$_currencySymbol${_baseRate.toStringAsFixed(0)}',
           ),
           const SizedBox(height: 8),
           _buildPriceRow(
@@ -345,7 +437,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                 ),
               ),
               Text(
-                '\$${_estimatedTotal.toStringAsFixed(0)}',
+                '$_currencySymbol${_estimatedTotal.toStringAsFixed(0)}',
                 style: const TextStyle(
                   color: Color(0xFF101828),
                   fontSize: 24,
@@ -426,7 +518,6 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                       ),
                     ),
                     const SizedBox(height: 48),
-
                     Text(
                       _eventDescription,
                       style: const TextStyle(
@@ -435,33 +526,25 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                         height: 1.4,
                       ),
                     ),
-
                     const SizedBox(height: 48),
-
                     _buildFieldLabel(text: 'Event Type'),
                     const SizedBox(height: 4),
                     _buildTextField(controller: _eventTypeController),
-
                     const SizedBox(height: 16),
-
                     _buildFieldLabel(
                       text: 'Event Date *',
                       icon: Icons.calendar_today_outlined,
                     ),
                     const SizedBox(height: 4),
                     _buildPickerField(onTap: _pickDate, value: _formattedDate),
-
                     const SizedBox(height: 16),
-
                     _buildFieldLabel(
                       text: 'Start Time *',
                       icon: Icons.schedule_outlined,
                     ),
                     const SizedBox(height: 4),
                     _buildPickerField(onTap: _pickTime, value: _formattedTime),
-
                     const SizedBox(height: 16),
-
                     _buildFieldLabel(text: 'Duration (hours)'),
                     const SizedBox(height: 4),
                     _buildTextField(
@@ -471,15 +554,12 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                         setState(() {});
                       },
                     ),
-
                     const SizedBox(height: 16),
-
                     _buildFieldLabel(
                       text: 'Number of Guests *',
                       icon: Icons.people_outline,
                     ),
                     const SizedBox(height: 4),
-
                     SizedBox(
                       height: 34,
                       child: TextField(
@@ -505,9 +585,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
                       'Minimum $_minGuests guests, maximum $_maxGuests guests',
                       style: const TextStyle(
@@ -515,17 +593,11 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                         fontSize: 12,
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     _buildPackageCard(),
-
                     const SizedBox(height: 24),
-
                     _buildPriceSummary(),
-
                     const SizedBox(height: 24),
-
                     SizedBox(
                       width: double.infinity,
                       height: 48,
@@ -539,10 +611,12 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: TextButton(
-                          onPressed: _confirmReservation,
-                          child: const Text(
-                            'Confirm Reservation',
-                            style: TextStyle(
+                          onPressed: _isSubmitting ? null : _confirmReservation,
+                          child: Text(
+                            _isSubmitting
+                                ? 'Creating Reservation...'
+                                : 'Confirm Reservation',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
