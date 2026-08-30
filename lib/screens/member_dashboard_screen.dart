@@ -7,6 +7,8 @@ import 'profile_screen.dart';
 import 'welcome_screen.dart';
 import '../services/auth_service.dart';
 import '../services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/membership_service.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   final DateTime registrationDate;
@@ -20,14 +22,17 @@ class MemberDashboardScreen extends StatefulWidget {
 
 class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
   String _memberName = 'Demo';
-  final String _memberId = '1768390004573';
-  final String _membershipPlan = 'Premium';
+  String _memberId = '-';
+  String _membershipPlan = '-';
+  String _validUntil = '-';
+  int _maxGuests = 0;
 
   @override
   void initState() {
     super.initState();
 
     _loadUserProfile();
+    _loadMembership();
   }
 
   Future<void> _loadUserProfile() async {
@@ -52,21 +57,45 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     });
   }
 
+  Future<void> _loadMembership() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    final membership = await MembershipService.getMembership(uid: user.uid);
+
+    if (membership == null) {
+      return;
+    }
+
+    final validUntilTimestamp = membership['validUntil'] as Timestamp?;
+
+    String formattedValidUntil = '-';
+
+    if (validUntilTimestamp != null) {
+      final date = validUntilTimestamp.toDate();
+
+      formattedValidUntil = '${date.month}/${date.day}/${date.year}';
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _memberId = membership['memberId'] as String? ?? _memberId;
+
+      _membershipPlan = membership['plan'] as String? ?? _membershipPlan;
+
+      _maxGuests = membership['maxGuests'] as int? ?? _maxGuests;
+
+      _validUntil = formattedValidUntil;
+    });
+  }
+
   int get _notificationCount => NotificationStore.unreadCount;
-
-  DateTime get _validUntilDate {
-    return DateTime(
-      widget.registrationDate.year + 1,
-      widget.registrationDate.month,
-      widget.registrationDate.day,
-    );
-  }
-
-  String get _validUntil {
-    final date = _validUntilDate;
-
-    return '${date.month}/${date.day}/${date.year}';
-  }
 
   // Hookah Sessions ve Drinks kartları için ortak yapı.
   Widget _buildAllowanceCard({
@@ -330,7 +359,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
           width: 0.52,
         ),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -354,7 +383,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '• Bring up to 2 guests with you',
+                  '• Bring up to $_maxGuests guests with you',
                   style: TextStyle(
                     color: Color(0xFF4A5565),
                     fontSize: 14,

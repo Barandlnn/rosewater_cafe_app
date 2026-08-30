@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+import '../services/auth_service.dart';
+import '../services/membership_service.dart';
 import 'member_dashboard_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -17,6 +20,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   final _cardNumberController = TextEditingController();
   final _expiryDateController = TextEditingController();
   final _cvvController = TextEditingController();
+
+  bool _isLoading = false;
 
   String get _price {
     switch (widget.selectedPlan) {
@@ -106,20 +111,60 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return null;
   }
 
- void _submitPayment() {
+ Future<void> _submitPayment() async {
     final isFormValid = _formKey.currentState?.validate() ?? false;
 
-    if (!isFormValid) {
+    if (!isFormValid || _isLoading) {
       return;
     }
 
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => MemberDashboardScreen()),
-      (route) => false,
-    );
-  }
+    final user = AuthService.currentUser;
 
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be signed in to create a membership.'),
+        ),
+      );
+
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await MembershipService.createMembership(
+        uid: user.uid,
+        plan: widget.selectedPlan,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => MemberDashboardScreen()),
+        (route) => false,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Membership creation failed: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -426,15 +471,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
                                   child: SizedBox(
                                     height: 48,
                                     child: TextButton(
-                                      onPressed: _submitPayment,
-                                      child: Text(
-                                        'Pay \$$_price',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
+                                      onPressed: _isLoading
+                                          ? null
+                                          : _submitPayment,
+                                      child: _isLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : Text(
+                                              'Pay \$$_price',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ),
