@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../services/event_service.dart';
 import 'reservation_confirmed_screen.dart';
 
 class EventReservationScreen extends StatefulWidget {
@@ -9,7 +11,22 @@ class EventReservationScreen extends StatefulWidget {
 }
 
 class _EventReservationScreenState extends State<EventReservationScreen> {
-  static const double _baseRate = 150;
+  double _baseRate = 150;
+  int _minGuests = 5;
+  int _maxGuests = 100;
+
+  String _eventDescription =
+      'Book the café for your private event. Perfect for parties, meetings, and special occasions.';
+
+  List<String> _packageIncludes = [
+    'Exclusive use of the café',
+    'Complimentary hookah for all guests',
+    'Special event menu available',
+    'Dedicated staff service',
+    'Sound system and music control',
+  ];
+
+  bool _isEventActive = true;
 
   final TextEditingController _eventTypeController = TextEditingController();
 
@@ -24,6 +41,43 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
+  @override
+  void initState() {
+    super.initState();
+
+    _loadEvent();
+  }
+
+  Future<void> _loadEvent() async {
+    final event = await EventService.getPrivateEvent();
+
+    if (event == null) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final packageIncludes = event['packageIncludes'];
+
+    setState(() {
+      _baseRate = (event['baseRate'] as num?)?.toDouble() ?? _baseRate;
+
+      _minGuests = (event['minGuests'] as num?)?.toInt() ?? _minGuests;
+
+      _maxGuests = (event['maxGuests'] as num?)?.toInt() ?? _maxGuests;
+
+      _eventDescription = event['description'] as String? ?? _eventDescription;
+
+      _isEventActive = event['isActive'] as bool? ?? _isEventActive;
+
+      if (packageIncludes is List) {
+        _packageIncludes = packageIncludes.whereType<String>().toList();
+      }
+    });
+  }
+
   int get _duration {
     return int.tryParse(_durationController.text) ?? 0;
   }
@@ -37,13 +91,17 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
   }
 
   String get _formattedDate {
-    if (_selectedDate == null) return '';
+    if (_selectedDate == null) {
+      return '';
+    }
 
     return '${_selectedDate!.month}/${_selectedDate!.day}/${_selectedDate!.year}';
   }
 
   String get _formattedTime {
-    if (_selectedTime == null) return '';
+    if (_selectedTime == null) {
+      return '';
+    }
 
     final hour = _selectedTime!.hour.toString().padLeft(2, '0');
     final minute = _selectedTime!.minute.toString().padLeft(2, '0');
@@ -61,7 +119,9 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       lastDate: DateTime(now.year + 2),
     );
 
-    if (pickedDate == null) return;
+    if (pickedDate == null) {
+      return;
+    }
 
     setState(() {
       _selectedDate = pickedDate;
@@ -74,7 +134,9 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       initialTime: TimeOfDay.now(),
     );
 
-    if (pickedTime == null) return;
+    if (pickedTime == null) {
+      return;
+    }
 
     setState(() {
       _selectedTime = pickedTime;
@@ -82,6 +144,11 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
   }
 
   void _confirmReservation() {
+    if (!_isEventActive) {
+      _showMessage('Event reservations are currently unavailable');
+      return;
+    }
+
     if (_eventTypeController.text.trim().isEmpty) {
       _showMessage('Please enter an event type');
       return;
@@ -102,8 +169,8 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       return;
     }
 
-    if (_guestCount < 5 || _guestCount > 100) {
-      _showMessage('Guest count must be between 5 and 100');
+    if (_guestCount < _minGuests || _guestCount > _maxGuests) {
+      _showMessage('Guest count must be between $_minGuests and $_maxGuests');
       return;
     }
 
@@ -219,10 +286,10 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE9D4FF), width: 0.52),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Event Package Includes:',
             style: TextStyle(
               color: Color(0xFF6E11B0),
@@ -230,15 +297,10 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            '• Exclusive use of the café\n'
-            '• Complimentary hookah for'
-            ' all guests\n'
-            '• Special event menu available\n'
-            '• Dedicated staff service\n'
-            '• Sound system and music control',
-            style: TextStyle(
+            _packageIncludes.map((item) => '• $item').join('\n'),
+            style: const TextStyle(
               color: Color(0xFF5916B8),
               fontSize: 14,
               height: 1.45,
@@ -340,9 +402,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
-
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(32),
@@ -365,14 +425,11 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-
                     const SizedBox(height: 48),
 
-                    const Text(
-                      'Book the café for your private\n'
-                      'event. Perfect for parties, meetings,\n'
-                      'and special occasions.',
-                      style: TextStyle(
+                    Text(
+                      _eventDescription,
+                      style: const TextStyle(
                         color: Color(0xFF4A5565),
                         fontSize: 16,
                         height: 1.4,
@@ -451,9 +508,12 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
 
                     const SizedBox(height: 4),
 
-                    const Text(
-                      'Minimum 5 guests, maximum 100 guests',
-                      style: TextStyle(color: Color(0xFF6A7282), fontSize: 12),
+                    Text(
+                      'Minimum $_minGuests guests, maximum $_maxGuests guests',
+                      style: const TextStyle(
+                        color: Color(0xFF6A7282),
+                        fontSize: 12,
+                      ),
                     ),
 
                     const SizedBox(height: 24),
