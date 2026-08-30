@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../services/membership_service.dart';
 import 'member_dashboard_screen.dart';
+import '../services/usage_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key, required this.selectedPlan});
@@ -111,7 +112,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return null;
   }
 
- Future<void> _submitPayment() async {
+  Future<void> _submitPayment() async {
     final isFormValid = _formKey.currentState?.validate() ?? false;
 
     if (!isFormValid || _isLoading) {
@@ -135,10 +136,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
 
     try {
-      await MembershipService.createMembership(
-        uid: user.uid,
-        plan: widget.selectedPlan,
-      );
+      await UsageService.createMonthlyUsage(uid: user.uid);
 
       if (!mounted) {
         return;
@@ -165,6 +163,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
