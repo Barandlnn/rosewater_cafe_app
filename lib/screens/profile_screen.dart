@@ -10,6 +10,7 @@ import 'help_support_screen.dart';
 import 'app_settings_screen.dart';
 import '../services/auth_service.dart';
 import 'auth_gate.dart';
+import '../services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,6 +26,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final String _memberId = '1768389549045';
   final String _membershipPlan = 'Premium';
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+    final profile = await UserService.getUserProfile(uid: user.uid);
+
+    if (profile == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _memberName = profile['fullName'] as String? ?? _memberName;
+      _email = profile['email'] as String? ?? _email;
+      _phone = profile['phone'] as String? ?? _phone;
+    });
+  }
 
   // ------------------------------------------------------------
   // GENERAL HELPERS

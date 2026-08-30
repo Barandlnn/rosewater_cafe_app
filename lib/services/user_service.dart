@@ -9,10 +9,22 @@ class UserService {
     required String phone,
   }) async {
     await _firestore.collection('users').doc(uid).set({
-      'fulName': fullName.trim(),
+      'fullName': fullName.trim(),
       'email': email.trim(),
       'phone': phone.trim(),
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  static Future<Map<String, dynamic>?> getUserProfile({
+    required String uid,
+  }) async {
+    final document = await _firestore.collection('users').doc(uid).get();
+
+    if (!document.exists) {
+      return null;
+    }
+
+    return document.data();
   }
 }

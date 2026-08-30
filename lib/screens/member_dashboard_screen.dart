@@ -6,6 +6,7 @@ import '../services/notification_store.dart';
 import 'profile_screen.dart';
 import 'welcome_screen.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 
 class MemberDashboardScreen extends StatefulWidget {
   final DateTime registrationDate;
@@ -18,9 +19,39 @@ class MemberDashboardScreen extends StatefulWidget {
 }
 
 class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
-  final String _memberName = 'Demo';
+  String _memberName = 'Demo';
   final String _memberId = '1768390004573';
   final String _membershipPlan = 'Premium';
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    final profile = await UserService.getUserProfile(uid: user.uid);
+
+    if (profile == null) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _memberName = profile['fullName'] as String? ?? _memberName;
+    });
+  }
+
   int get _notificationCount => NotificationStore.unreadCount;
 
   DateTime get _validUntilDate {
