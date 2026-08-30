@@ -27,4 +27,16 @@ class UserService {
 
     return document.data();
   }
+
+  static Future<void> updateUserProfile({
+    required String uid,
+    required String fullName,
+    required String phone,
+  }) async {
+    await _firestore.collection('users').doc(uid).update({
+      'fullName': fullName.trim(),
+      'phone': phone.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 }

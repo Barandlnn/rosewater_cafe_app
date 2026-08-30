@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
+
 class EditProfileScreen extends StatefulWidget {
   final String initialName;
   final String initialEmail;
@@ -29,7 +32,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // Alanların daha önce temizlenip temizlenmediğini tutuyoruz.
   bool _nameCleared = false;
-  bool _emailCleared = false;
   bool _phoneCleared = false;
 
   @override
@@ -62,8 +64,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    await UserService.updateUserProfile(
+      uid: user.uid,
+      fullName: _nameController.text,
+      phone: _phoneController.text,
+    );
+    await AuthService.updateDisplayName(name: _nameController.text);
+
+    if (!mounted) {
       return;
     }
 
@@ -320,12 +339,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             controller: _emailController,
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
-            onTap: () {
-              if (!_emailCleared) {
-                _emailController.clear();
-                _emailCleared = true;
-              }
-            },
+            readOnly: true,
             validator: (value) {
               final email = value?.trim() ?? '';
 
@@ -380,6 +394,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required String? Function(String?) validator,
     VoidCallback? onTap,
     TextCapitalization textCapitalization = TextCapitalization.none,
+    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,6 +416,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           textCapitalization: textCapitalization,
           onTap: onTap,
           validator: validator,
+          readOnly: readOnly,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w400,

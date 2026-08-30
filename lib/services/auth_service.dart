@@ -36,6 +36,16 @@ class AuthService {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
 
+  static Future<void> updateDisplayName({required String name}) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    await user.updateDisplayName(name.trim());
+  }
+
   static Future<void> signOut() async {
     await _auth.signOut();
   }
