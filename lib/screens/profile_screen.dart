@@ -11,6 +11,8 @@ import 'app_settings_screen.dart';
 import '../services/auth_service.dart';
 import 'auth_gate.dart';
 import '../services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/membership_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,15 +25,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _memberName = 'Demo User';
   String _email = '1@gmail.com';
   String _phone = '+1 (555) 123-4567';
-
-  final String _memberId = '1768389549045';
-  final String _membershipPlan = 'Premium';
+  String _memberId = '-';
+  String _membershipPlan = '-';
+  String _validUntil = '-';
+  int _maxGuests = 0;
 
   @override
   void initState() {
     super.initState();
 
     _loadUserProfile();
+    _loadMembership();
   }
 
   Future<void> _loadUserProfile() async {
@@ -52,6 +56,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _memberName = profile['fullName'] as String? ?? _memberName;
       _email = profile['email'] as String? ?? _email;
       _phone = profile['phone'] as String? ?? _phone;
+    });
+  }
+
+  Future<void> _loadMembership() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    final membership = await MembershipService.getMembership(uid: user.uid);
+
+    if (membership == null) {
+      return;
+    }
+
+    final validUntilTimestamp = membership['validUntil'] as Timestamp?;
+
+    String formattedValidUntil = '-';
+
+    if (validUntilTimestamp != null) {
+      final date = validUntilTimestamp.toDate();
+
+      formattedValidUntil = '${date.month}/${date.day}/${date.year}';
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _memberId = membership['memberId'] as String? ?? _memberId;
+
+      _membershipPlan = membership['plan'] as String? ?? _membershipPlan;
+
+      _maxGuests = membership['maxGuests'] as int? ?? _maxGuests;
+
+      _validUntil = formattedValidUntil;
     });
   }
 
@@ -251,9 +293,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        'PREMIUM Member',
-                        style: TextStyle(
+                      child: Text(
+                        '${_membershipPlan.toUpperCase()} Member',
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: Colors.white,
@@ -362,15 +404,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           const SizedBox(height: 24),
 
-          _buildMembershipDetailRow(label: 'Plan', value: 'Premium'),
+          _buildMembershipDetailRow(label: 'Plan', value: _membershipPlan),
 
           const SizedBox(height: 12),
 
-          _buildMembershipDetailRow(label: 'Valid Until', value: '2/13/2026'),
+          _buildMembershipDetailRow(label: 'Valid Until', value: _validUntil),
 
           const SizedBox(height: 12),
 
-          _buildMembershipDetailRow(label: 'Max Guests', value: '2'),
+          _buildMembershipDetailRow(
+            label: 'Max Guests',
+            value: _maxGuests.toString(),
+          ),
 
           const SizedBox(height: 24),
 
