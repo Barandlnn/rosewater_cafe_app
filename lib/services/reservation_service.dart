@@ -30,4 +30,24 @@ class ReservationService {
 
     return documentReference.id;
   }
+  static Future<Map<String, dynamic>?> getReservationById({
+    required String reservationId,
+  }) async {
+    final document = await _firestore
+        .collection('reservations')
+        .doc(reservationId)
+        .get();
+
+    if (!document.exists) {
+      return null;
+    }
+
+    final data = document.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    return {'id': document.id, ...data};
+  }
 }

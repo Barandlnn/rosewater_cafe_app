@@ -1,0 +1,126 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------
+    // USERS
+    // ---------------------------------------------------------
+
+    match /users/{userId} {
+      allow read, create, update: if request.auth != null
+                                  && request.auth.uid == userId;
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // MEMBERSHIPS
+    // ---------------------------------------------------------
+
+    match /memberships/{userId} {
+
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+
+                    && request.resource.data.keys().hasOnly([
+                      'plan',
+                      'status',
+                      'memberId',
+                      'startedAt',
+                      'validUntil',
+                      'maxGuests',
+                      'createdAt',
+                      'updatedAt'
+                    ])
+
+                    && request.resource.data.plan in [
+                      'Basic',
+                      'Premium',
+                      'VIP'
+                    ]
+
+                    && request.resource.data.status == 'active'
+
+                    && request.resource.data.memberId is string
+
+                    && request.resource.data.startedAt is timestamp
+                    && request.resource.data.validUntil is timestamp
+                    && request.resource.data.validUntil >
+                       request.resource.data.startedAt
+
+                    && request.resource.data.maxGuests is int
+
+                    && (
+                      (
+                        request.resource.data.plan == 'Basic'
+                        && request.resource.data.maxGuests == 1
+                      )
+                      ||
+                      (
+                        request.resource.data.plan == 'Premium'
+                        && request.resource.data.maxGuests == 2
+                      )
+                      ||
+                      (
+                        request.resource.data.plan == 'VIP'
+                        && request.resource.data.maxGuests == 2
+                      )
+                    );
+
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // USAGE
+    // ---------------------------------------------------------
+
+    match /usage/{userId}/months/{monthId} {
+
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
+
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+
+                    && request.resource.data.keys().hasOnly([
+                      'hookahUsed',
+                      'drinksUsed',
+                      'createdAt',
+                      'updatedAt'
+                    ])
+
+                    && request.resource.data.hookahUsed == 0
+                    && request.resource.data.drinksUsed == 0;
+
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // EVENTS
+    // ---------------------------------------------------------
+
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if false;
+    }
+
+    // ---------------------------------------------------------
+    // RESERVATIONS
+    // ---------------------------------------------------------
+
+    match /reservations/{reservationId} {
+
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+
+      allow read: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+  }
+}

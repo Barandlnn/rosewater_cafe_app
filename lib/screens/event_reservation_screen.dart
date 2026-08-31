@@ -226,7 +226,7 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
     });
 
     try {
-      await ReservationService.createReservation(
+      final reservationId = await ReservationService.createReservation(
         uid: user.uid,
         eventType: eventType,
         eventDateTime: eventDateTime,
@@ -236,7 +236,6 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
         estimatedTotal: _estimatedTotal,
         currency: _currency,
       );
-
       if (!mounted) {
         return;
       }
@@ -248,12 +247,8 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => ReservationConfirmedScreen(
-            date: _selectedDate!,
-            time: _selectedTime!,
-            duration: _duration,
-            guestCount: _guestCount,
-          ),
+          builder: (context) =>
+              ReservationConfirmedScreen(reservationId: reservationId),
         ),
       );
     } on FirebaseException catch (error) {
