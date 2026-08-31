@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+
+import '../services/auth_service.dart';
+import '../services/door_access_service.dart';
 
 class DoorAccessScreen extends StatefulWidget {
   const DoorAccessScreen({
@@ -18,6 +22,10 @@ class DoorAccessScreen extends StatefulWidget {
 class _DoorAccessScreenState extends State<DoorAccessScreen> {
   int _guestCount = 0;
 
+  String? _accessRequestId;
+  bool _isCreatingAccessRequest = false;
+  String? _accessError;
+
   int get _maxGuests => widget.membershipPlan == 'Basic' ? 1 : 2;
 
   void _changeGuests(int amount) {
@@ -30,10 +38,61 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
     });
   }
 
+  Future<void> _createAccessRequest() async {
+    final user = AuthService.currentUser;
+
+    if (user == null || _isCreatingAccessRequest) {
+      return;
+    }
+
+    setState(() {
+      _isCreatingAccessRequest = true;
+      _accessError = null;
+    });
+
+    try {
+      final accessRequestId = await DoorAccessService.createAccessRequest(
+        uid: user.uid,
+        memberId: widget.memberId,
+        membershipPlan: widget.membershipPlan,
+        guestCount: _guestCount,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _accessRequestId = accessRequestId;
+        _isCreatingAccessRequest = false;
+        _accessError = null;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCreatingAccessRequest = false;
+        _accessError = 'Door access could not be prepared (${error.code}).';
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCreatingAccessRequest = false;
+        _accessError = 'Door access could not be prepared.';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final qrData =
-        'rosewater-demo|member:${widget.memberId}|plan:${widget.membershipPlan}|guests:$_guestCount';
+    final qrData = _accessRequestId == null
+        ? null
+        : 'rosewater-access:$_accessRequestId';
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7FB),
@@ -98,12 +157,37 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                           ),
                         ],
                       ),
-                      child: QrImageView(
-                        data: qrData,
-                        version: QrVersions.auto,
-                        size: 220,
-                        backgroundColor: Colors.white,
-                      ),
+                      child: qrData == null
+                          ? const SizedBox(
+                              width: 220,
+                              height: 220,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.qr_code_2,
+                                    size: 72,
+                                    color: Color(0xFF9CA3AF),
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'Prepare door access\nto generate your QR code',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(0xFF6A7282),
+                                      fontSize: 14,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : QrImageView(
+                              data: qrData,
+                              version: QrVersions.auto,
+                              size: 220,
+                              backgroundColor: Colors.white,
+                            ),
                     ),
                     const SizedBox(height: 24),
                     const Text(
@@ -236,17 +320,15 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: TextButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Door access prepared for $_guestCount guest(s)',
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Open Door',
+                          onPressed: _isCreatingAccessRequest
+                              ? null
+                              : _createAccessRequest,
+                          child: Text(
+                            _isCreatingAccessRequest
+                                ? 'Preparing...'
+                                : _accessRequestId == null
+                                ? 'Prepare Door Access'
+                                : 'Refresh Door Access',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -256,6 +338,17 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                         ),
                       ),
                     ),
+                    if (_accessError != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _accessError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFB42318),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
