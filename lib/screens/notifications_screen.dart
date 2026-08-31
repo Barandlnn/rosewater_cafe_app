@@ -74,6 +74,81 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     }
   }
+  Future<void> _markAsRead(Map<String, dynamic> notification) async {
+    final user = AuthService.currentUser;
+    final notificationId = notification['id'] as String?;
+
+    if (user == null || notificationId == null) {
+      return;
+    }
+
+    try {
+      await NotificationService.markAsRead(
+        uid: user.uid,
+        notificationId: notificationId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        final index = _notifications.indexWhere(
+          (item) => item['id'] == notificationId,
+        );
+
+        if (index != -1) {
+          _notifications[index] = {..._notifications[index], 'isRead': true};
+        }
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Notification could not be marked as read (${error.code}).',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteNotification(Map<String, dynamic> notification) async {
+    final user = AuthService.currentUser;
+    final notificationId = notification['id'] as String?;
+
+    if (user == null || notificationId == null) {
+      return;
+    }
+
+    try {
+      await NotificationService.deleteNotification(
+        uid: user.uid,
+        notificationId: notificationId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _notifications.removeWhere((item) => item['id'] == notificationId);
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notification could not be deleted (${error.code}).'),
+        ),
+      );
+    }
+  }
 
   IconData _getNotificationIcon(String type) {
     switch (type) {
@@ -405,27 +480,73 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 ),
 
-                if (hasDetails) ...[
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: () {
-                      _showDetails(notification);
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF9810FA),
+                const SizedBox(height: 10),
+
+                Row(
+                  children: [
+                    if (isUnread)
+                      TextButton.icon(
+                        onPressed: () {
+                          _markAsRead(notification);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFEC003F),
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text(
+                          'Mark as Read',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+
+                    if (isUnread && hasDetails) const SizedBox(width: 20),
+
+                    if (hasDetails)
+                      TextButton(
+                        onPressed: () {
+                          _showDetails(notification);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF9810FA),
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text(
+                          'View Details',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+
+                    const Spacer(),
+
+                    IconButton(
+                      onPressed: () {
+                        _deleteNotification(notification);
+                      },
                       padding: EdgeInsets.zero,
-                      minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text(
-                      'View Details',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      tooltip: 'Delete notification',
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFF6A7282),
+                        size: 18,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ],
             ),
           ),

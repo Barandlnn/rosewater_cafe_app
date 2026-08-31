@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'door_access_screen.dart';
 import 'event_reservation_screen.dart';
 import 'notifications_screen.dart';
-import '../services/notification_store.dart';
+import '../services/notification_service.dart';
 import 'profile_screen.dart';
 import 'welcome_screen.dart';
 import '../services/auth_service.dart';
@@ -31,6 +31,8 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
   int _hookahUsed = 0;
   int _drinksUsed = 0;
 
+  int _notificationCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -38,6 +40,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     _loadUserProfile();
     _loadMembership();
     _loadUsage();
+    _loadNotificationCount();
   }
 
   Future<void> _loadUserProfile() async {
@@ -130,6 +133,36 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     });
   }
 
+  Future<void> _loadNotificationCount() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      return;
+    }
+
+    try {
+      final unreadCount = await NotificationService.getUnreadCount(
+        uid: user.uid,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _notificationCount = unreadCount;
+      });
+    } on FirebaseException {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _notificationCount = 0;
+      });
+    }
+  }
+
   int? get _monthlyAllowanceTotal {
     switch (_membershipPlan) {
       case 'Basic':
@@ -145,8 +178,6 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
         return 0;
     }
   }
-
-  int get _notificationCount => NotificationStore.unreadCount;
 
   // Hookah Sessions ve Drinks kartları için ortak yapı.
   Widget _buildAllowanceCard({
@@ -615,7 +646,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(18),
-                                onTap: () async {
+                               onTap: () async {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -624,9 +655,11 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                                     ),
                                   );
 
-                                  if (!mounted) return;
+                                  if (!mounted) {
+                                    return;
+                                  }
 
-                                  setState(() {});
+                                  await _loadNotificationCount();
                                 },
                                 child: SizedBox(
                                   width: 40,

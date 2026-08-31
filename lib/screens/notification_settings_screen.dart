@@ -1,4 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
+import '../services/notification_settings_service.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -19,8 +23,138 @@ class _NotificationSettingsScreenState
   bool _allowanceAlerts = true;
   bool _promotionsAndOffers = true;
 
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final user = AuthService.currentUser;
+
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      return;
+    }
+
+    try {
+      var settings = await NotificationSettingsService.getSettings(
+        uid: user.uid,
+      );
+
+      if (settings == null) {
+        await NotificationSettingsService.createDefaultSettings(uid: user.uid);
+
+        settings = await NotificationSettingsService.getSettings(uid: user.uid);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _pushNotifications = settings?['pushNotifications'] as bool? ?? true;
+
+        _emailNotifications = settings?['emailNotifications'] as bool? ?? true;
+
+        _smsNotifications = settings?['smsNotifications'] as bool? ?? false;
+
+        _soundAndVibration = settings?['soundAndVibration'] as bool? ?? true;
+
+        _eventReminders = settings?['eventReminders'] as bool? ?? true;
+
+        _allowanceAlerts = settings?['allowanceAlerts'] as bool? ?? true;
+
+        _promotionsAndOffers =
+            settings?['promotionsAndOffers'] as bool? ?? true;
+
+        _isLoading = false;
+      });
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Notification settings could not be loaded (${error.code}).',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    final user = AuthService.currentUser;
+
+    if (user == null || _isSaving) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await NotificationSettingsService.updateSettings(
+        uid: user.uid,
+        pushNotifications: _pushNotifications,
+        emailNotifications: _emailNotifications,
+        smsNotifications: _smsNotifications,
+        soundAndVibration: _soundAndVibration,
+        eventReminders: _eventReminders,
+        allowanceAlerts: _allowanceAlerts,
+        promotionsAndOffers: _promotionsAndOffers,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pop(context);
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSaving = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Notification settings could not be saved (${error.code}).',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFFF7FB),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7FB),
       body: SafeArea(
@@ -82,6 +216,7 @@ class _NotificationSettingsScreenState
                 },
                 isLast: true,
               ),
+
               const SizedBox(height: 20),
 
               _buildNotificationTypesHeader(),
@@ -124,6 +259,7 @@ class _NotificationSettingsScreenState
               ),
 
               const SizedBox(height: 20),
+
               _buildDoneButton(),
             ],
           ),
@@ -333,9 +469,7 @@ class _NotificationSettingsScreenState
       width: double.infinity,
       height: 48,
       child: OutlinedButton(
-        onPressed: () {
-          Navigator.pop(context);
-        },
+        onPressed: _isSaving ? null : _saveSettings,
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white.withValues(alpha: 0.90),
           foregroundColor: const Color(0xFF1E2939),
@@ -345,10 +479,16 @@ class _NotificationSettingsScreenState
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: const Text(
-          'Done',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        ),
+        child: _isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Text(
+                'Done',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
       ),
     );
   }

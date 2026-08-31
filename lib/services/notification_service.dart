@@ -21,6 +21,22 @@ class NotificationService {
     }).toList();
   }
 
+  static Future<void> createReservationConfirmation({
+    required String uid,
+    required String reservationId,
+  }) async {
+    await _notificationsReference(uid: uid).doc(reservationId).set({
+      'title': 'Event Reservation Confirmed',
+      'message': 'Your private event reservation has been confirmed.',
+      'type': 'event',
+      'isRead': false,
+      'hasDetails': true,
+      'reservationId': reservationId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   static Future<void> markAsRead({
     required String uid,
     required String notificationId,

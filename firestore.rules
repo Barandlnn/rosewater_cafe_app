@@ -8,11 +8,156 @@ service cloud.firestore {
     // ---------------------------------------------------------
 
     match /users/{userId} {
+
       allow read, create, update: if request.auth != null
                                   && request.auth.uid == userId;
 
       allow delete: if false;
     }
+
+   // ---------------------------------------------------------
+// NOTIFICATION SETTINGS
+// ---------------------------------------------------------
+
+match /users/{userId}/settings/notifications {
+
+  // Kullanıcı yalnızca kendi notification ayarlarını okuyabilir.
+  allow read: if request.auth != null
+              && request.auth.uid == userId;
+
+  // İlk settings document'ı yalnızca geçerli alanlarla oluşturulabilir.
+  allow create: if request.auth != null
+                && request.auth.uid == userId
+
+                && request.resource.data.keys().hasOnly([
+                  'pushNotifications',
+                  'emailNotifications',
+                  'smsNotifications',
+                  'soundAndVibration',
+                  'eventReminders',
+                  'allowanceAlerts',
+                  'promotionsAndOffers',
+                  'createdAt',
+                  'updatedAt'
+                ])
+
+                && request.resource.data.pushNotifications is bool
+                && request.resource.data.emailNotifications is bool
+                && request.resource.data.smsNotifications is bool
+                && request.resource.data.soundAndVibration is bool
+                && request.resource.data.eventReminders is bool
+                && request.resource.data.allowanceAlerts is bool
+                && request.resource.data.promotionsAndOffers is bool
+
+                && request.resource.data.createdAt == request.time
+                && request.resource.data.updatedAt == request.time;
+
+  // Kullanıcı sadece notification tercihlerini değiştirebilir.
+  allow update: if request.auth != null
+                && request.auth.uid == userId
+
+                && request.resource.data
+                    .diff(resource.data)
+                    .affectedKeys()
+                    .hasOnly([
+                      'pushNotifications',
+                      'emailNotifications',
+                      'smsNotifications',
+                      'soundAndVibration',
+                      'eventReminders',
+                      'allowanceAlerts',
+                      'promotionsAndOffers',
+                      'updatedAt'
+                    ])
+
+                && request.resource.data.pushNotifications is bool
+                && request.resource.data.emailNotifications is bool
+                && request.resource.data.smsNotifications is bool
+                && request.resource.data.soundAndVibration is bool
+                && request.resource.data.eventReminders is bool
+                && request.resource.data.allowanceAlerts is bool
+                && request.resource.data.promotionsAndOffers is bool
+
+                && request.resource.data.updatedAt == request.time;
+
+  allow delete: if false;
+}
+
+   // ---------------------------------------------------------
+// NOTIFICATIONS
+// ---------------------------------------------------------
+
+match /users/{userId}/notifications/{notificationId} {
+
+  // Kullanıcı yalnızca kendi bildirimlerini okuyabilir.
+  allow read: if request.auth != null
+              && request.auth.uid == userId;
+
+  // Kullanıcı yalnızca kendisine ait gerçek bir rezervasyon
+  // için confirmation notification oluşturabilir.
+  allow create: if request.auth != null
+                && request.auth.uid == userId
+
+                && request.resource.data.keys().hasOnly([
+                  'title',
+                  'message',
+                  'type',
+                  'isRead',
+                  'hasDetails',
+                  'reservationId',
+                  'createdAt',
+                  'updatedAt'
+                ])
+
+                && request.resource.data.title ==
+                   'Event Reservation Confirmed'
+
+                && request.resource.data.message ==
+                   'Your private event reservation has been confirmed.'
+
+                && request.resource.data.type == 'event'
+
+                && request.resource.data.isRead == false
+
+                && request.resource.data.hasDetails == true
+
+                && request.resource.data.reservationId is string
+
+                && notificationId ==
+                   request.resource.data.reservationId
+
+                && exists(
+                  /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
+                )
+
+                && get(
+                  /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
+                ).data.userId == request.auth.uid
+
+                && request.resource.data.createdAt == request.time
+
+                && request.resource.data.updatedAt == request.time;
+
+  // Kullanıcı sadece isRead ve updatedAt alanlarını değiştirebilir.
+  allow update: if request.auth != null
+                && request.auth.uid == userId
+
+                && request.resource.data
+                    .diff(resource.data)
+                    .affectedKeys()
+                    .hasOnly([
+                      'isRead',
+                      'updatedAt'
+                    ])
+
+                && request.resource.data.isRead == true
+
+                && request.resource.data.updatedAt == request.time;
+
+  // Kullanıcı yalnızca kendi notification document'ını silebilir.
+  allow delete: if request.auth != null
+                && request.auth.uid == userId;
+}
 
     // ---------------------------------------------------------
     // MEMBERSHIPS
@@ -20,9 +165,12 @@ service cloud.firestore {
 
     match /memberships/{userId} {
 
+      // Kullanıcı yalnızca kendi üyeliğini okuyabilir.
       allow read: if request.auth != null
                   && request.auth.uid == userId;
 
+      // Kullanıcı yalnızca kendi UID'si altında
+      // ilk membership kaydını oluşturabilir.
       allow create: if request.auth != null
                     && request.auth.uid == userId
 
@@ -48,7 +196,9 @@ service cloud.firestore {
                     && request.resource.data.memberId is string
 
                     && request.resource.data.startedAt is timestamp
+
                     && request.resource.data.validUntil is timestamp
+
                     && request.resource.data.validUntil >
                        request.resource.data.startedAt
 
@@ -80,9 +230,11 @@ service cloud.firestore {
 
     match /usage/{userId}/months/{monthId} {
 
+      // Kullanıcı yalnızca kendi kullanım verisini okuyabilir.
       allow read: if request.auth != null
                   && request.auth.uid == userId;
 
+      // İlk aylık kullanım kaydı yalnızca 0 / 0 ile oluşturulabilir.
       allow create: if request.auth != null
                     && request.auth.uid == userId
 
@@ -96,6 +248,7 @@ service cloud.firestore {
                     && request.resource.data.hookahUsed == 0
                     && request.resource.data.drinksUsed == 0;
 
+      // Şimdilik kullanıcı usage değerlerini değiştiremez.
       allow update, delete: if false;
     }
 
@@ -104,7 +257,11 @@ service cloud.firestore {
     // ---------------------------------------------------------
 
     match /events/{eventId} {
+
+      // Giriş yapmış kullanıcı event verilerini okuyabilir.
       allow read: if request.auth != null;
+
+      // Normal uygulama kullanıcısı event verilerini değiştiremez.
       allow create, update, delete: if false;
     }
 
@@ -114,12 +271,16 @@ service cloud.firestore {
 
     match /reservations/{reservationId} {
 
+      // Kullanıcı yalnızca kendi UID'si adına
+      // rezervasyon oluşturabilir.
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
 
+      // Kullanıcı yalnızca kendi rezervasyonunu okuyabilir.
       allow read: if request.auth != null
                   && resource.data.userId == request.auth.uid;
 
+      // Şimdilik rezervasyon sonradan değiştirilemez veya silinemez.
       allow update, delete: if false;
     }
   }
