@@ -284,4 +284,79 @@ match /users/{userId}/notifications/{notificationId} {
       allow update, delete: if false;
     }
   }
+      // ---------------------------------------------------------
+    // DOOR ACCESS REQUESTS
+    // ---------------------------------------------------------
+
+    match /doorAccessRequests/{requestId} {
+
+      allow create: if request.auth != null
+
+                    && request.resource.data.keys().hasOnly([
+                      'userId',
+                      'memberId',
+                      'membershipPlan',
+                      'guestCount',
+                      'status',
+                      'createdAt',
+                      'expiresAt'
+                    ])
+
+                    && request.resource.data.userId == request.auth.uid
+
+                    && request.resource.data.memberId is string
+
+                    && request.resource.data.membershipPlan in [
+                      'Basic',
+                      'Premium',
+                      'VIP'
+                    ]
+
+                    && request.resource.data.guestCount is int
+
+                    && request.resource.data.guestCount >= 0
+
+                    && request.resource.data.status == 'pending'
+
+                    && request.resource.data.createdAt == request.time
+
+                    && request.resource.data.expiresAt is timestamp
+
+                    && request.resource.data.expiresAt > request.time
+
+                    && request.resource.data.expiresAt
+                       <= request.time + duration.value(10, 'm')
+
+                    && exists(
+                      /databases/$(database)/documents/memberships/$(request.auth.uid)
+                    )
+
+                    && get(
+                      /databases/$(database)/documents/memberships/$(request.auth.uid)
+                    ).data.status == 'active'
+
+                    && get(
+                      /databases/$(database)/documents/memberships/$(request.auth.uid)
+                    ).data.validUntil > request.time
+
+                    && request.resource.data.memberId
+                       == get(
+                         /databases/$(database)/documents/memberships/$(request.auth.uid)
+                       ).data.memberId
+
+                    && request.resource.data.membershipPlan
+                       == get(
+                         /databases/$(database)/documents/memberships/$(request.auth.uid)
+                       ).data.plan
+
+                    && request.resource.data.guestCount
+                       <= get(
+                         /databases/$(database)/documents/memberships/$(request.auth.uid)
+                       ).data.maxGuests;
+
+      allow read: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+
+      allow update, delete: if false;
+    }
 }
