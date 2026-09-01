@@ -13,7 +13,23 @@ class ReservationService {
     required double estimatedTotal,
     required String currency,
   }) async {
-    final documentReference = await _firestore.collection('reservations').add({
+    final reservationReference = _firestore.collection('reservations').doc();
+
+    final reservationId = reservationReference.id;
+
+    final notificationReference = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .doc(reservationId);
+
+    final batch = _firestore.batch();
+
+    // ---------------------------------------------------------
+    // RESERVATION
+    // ---------------------------------------------------------
+
+    batch.set(reservationReference, {
       'userId': uid,
       'eventId': 'private_event',
       'eventType': eventType.trim(),
@@ -28,8 +44,27 @@ class ReservationService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    return documentReference.id;
+    // ---------------------------------------------------------
+    // NOTIFICATION
+    // ---------------------------------------------------------
+
+    batch.set(notificationReference, {
+      'title': 'Event Reservation Confirmed',
+      'message': 'Your private event reservation has been confirmed.',
+      'type': 'event',
+      'isRead': false,
+      'hasDetails': true,
+      'reservationId': reservationId,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Her iki write tek transaction-like batch olarak commit edilir.
+    await batch.commit();
+
+    return reservationId;
   }
+
   static Future<Map<String, dynamic>?> getReservationById({
     required String reservationId,
   }) async {

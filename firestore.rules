@@ -205,13 +205,9 @@ service cloud.firestore {
                     && notificationId
                        == request.resource.data.reservationId
 
-                    && exists(
-                      /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
-                    )
-
-                    && get(
-                      /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
-                    ).data.userId == request.auth.uid
+                 && getAfter(
+  /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
+).data.userId == request.auth.uid
 
                     && request.resource.data.createdAt == request.time
 

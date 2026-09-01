@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/event_service.dart';
 import '../services/reservation_service.dart';
-import '../services/notification_service.dart';
+
 import 'reservation_confirmed_screen.dart';
 
 class EventReservationScreen extends StatefulWidget {
@@ -237,11 +237,6 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
         estimatedTotal: _estimatedTotal,
         currency: _currency,
       );
-      await NotificationService.createReservationConfirmation(
-        uid: user.uid,
-        reservationId: reservationId,
-      );
-
       if (!mounted) {
         return;
       }
