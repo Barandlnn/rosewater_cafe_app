@@ -32,6 +32,38 @@ class AuthService {
     );
   }
 
+  static Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'No signed-in user was found.',
+      );
+    }
+
+    final email = user.email;
+
+    if (email == null) {
+      throw FirebaseAuthException(
+        code: 'email-not-found',
+        message: 'The signed-in account does not have an email address.',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+
+    await user.reauthenticateWithCredential(credential);
+
+    await user.updatePassword(newPassword);
+  }
+
   static Future<void> resetPassword({required String email}) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }

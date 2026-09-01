@@ -1,4 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
 
 class PrivacySecurityScreen extends StatefulWidget {
   const PrivacySecurityScreen({super.key});
@@ -12,6 +15,8 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   bool _twoFactorAuthentication = false;
   bool _autoLock = true;
   bool _showPasswordForm = false;
+
+  bool _isUpdatingPassword = false;
 
   final TextEditingController _currentPasswordController =
       TextEditingController();
@@ -60,6 +65,106 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
     }
 
     return null;
+  }
+
+  Future<void> _updatePassword() async {
+    final validationError = _validatePasswordUpdate();
+
+    if (validationError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(validationError)));
+
+      return;
+    }
+
+    if (_isUpdatingPassword) {
+      return;
+    }
+
+    setState(() {
+      _isUpdatingPassword = true;
+    });
+
+    try {
+      await AuthService.updatePassword(
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+
+      setState(() {
+        _isUpdatingPassword = false;
+        _showPasswordForm = false;
+
+        _obscureCurrentPassword = true;
+        _obscureNewPassword = true;
+        _obscureConfirmPassword = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password updated successfully.')),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isUpdatingPassword = false;
+      });
+
+      String message;
+
+      switch (error.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          message = 'Your current password is incorrect.';
+          break;
+
+        case 'weak-password':
+          message = 'Your new password is too weak.';
+          break;
+
+        case 'too-many-requests':
+          message = 'Too many attempts. Please try again later.';
+          break;
+
+        case 'network-request-failed':
+          message = 'Please check your internet connection.';
+          break;
+
+        case 'requires-recent-login':
+          message = 'Please sign in again before changing your password.';
+          break;
+
+        default:
+          message = 'Password could not be updated (${error.code}).';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isUpdatingPassword = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password could not be updated.')),
+      );
+    }
   }
 
   @override
@@ -390,19 +495,21 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                   child: SizedBox(
                     height: 40,
                     child: OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          _showPasswordForm = false;
+                      onPressed: _isUpdatingPassword
+                          ? null
+                          : () {
+                              setState(() {
+                                _showPasswordForm = false;
 
-                          _currentPasswordController.clear();
-                          _newPasswordController.clear();
-                          _confirmPasswordController.clear();
+                                _currentPasswordController.clear();
+                                _newPasswordController.clear();
+                                _confirmPasswordController.clear();
 
-                          _obscureCurrentPassword = true;
-                          _obscureNewPassword = true;
-                          _obscureConfirmPassword = true;
-                        });
-                      },
+                                _obscureCurrentPassword = true;
+                                _obscureNewPassword = true;
+                                _obscureConfirmPassword = true;
+                              });
+                            },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF1E2939),
                         side: BorderSide(
@@ -433,25 +540,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: ElevatedButton(
-                        onPressed: () {
-                          final validationError = _validatePasswordUpdate();
-
-                          if (validationError != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(validationError)),
-                            );
-
-                            return;
-                          }
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Validation successful. Password update will be connected with Firebase.',
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: _isUpdatingPassword ? null : _updatePassword,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
@@ -460,9 +549,11 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
-                          'Update Password',
-                          style: TextStyle(
+                        child: Text(
+                          _isUpdatingPassword
+                              ? 'Updating...'
+                              : 'Update Password',
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
