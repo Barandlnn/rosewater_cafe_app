@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
+import 'auth_gate.dart';
+import '../services/account_service.dart';
 import '../services/auth_service.dart';
 
 class PrivacySecurityScreen extends StatefulWidget {
@@ -17,6 +19,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
   bool _showPasswordForm = false;
 
   bool _isUpdatingPassword = false;
+  bool _isDeletingAccount = false;
 
   final TextEditingController _currentPasswordController =
       TextEditingController();
@@ -165,6 +168,230 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         const SnackBar(content: Text('Password could not be updated.')),
       );
     }
+  }
+
+  Future<String?> _deleteAccount(String currentPassword) async {
+    if (_isDeletingAccount) {
+      return 'Account deletion is already in progress.';
+    }
+
+    setState(() {
+      _isDeletingAccount = true;
+    });
+
+    try {
+      await AccountService.deleteAccount(currentPassword: currentPassword);
+
+      return null;
+    } on FirebaseAuthException catch (error) {
+      switch (error.code) {
+        case 'wrong-password':
+        case 'invalid-credential':
+          return 'Your current password is incorrect.';
+
+        case 'too-many-requests':
+          return 'Too many attempts. Please try again later.';
+
+        case 'network-request-failed':
+          return 'Please check your internet connection.';
+
+        case 'requires-recent-login':
+          return 'Please sign in again before deleting your account.';
+
+        case 'user-not-found':
+          return 'No signed-in user was found.';
+
+        default:
+          return 'Account could not be deleted (${error.code}).';
+      }
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') {
+        return 'Some account data could not be deleted due to permissions.';
+      }
+
+      return 'Account data could not be deleted (${error.code}).';
+    } catch (_) {
+      return 'Account could not be deleted. Please try again.';
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeletingAccount = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showDeleteAccountDialog() async {
+    if (_isDeletingAccount) {
+      return;
+    }
+
+    final passwordController = TextEditingController();
+
+    var obscurePassword = true;
+    var isSubmitting = false;
+    String? errorMessage;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text(
+                'Delete Account',
+                style: TextStyle(
+                  color: Color(0xFFE7000B),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              content: SizedBox(
+                width: 320,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'This action permanently deletes your account and associated data. It cannot be undone.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.4,
+                        color: Color(0xFF4A5565),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Current Password',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1E2939),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: passwordController,
+                      obscureText: obscurePassword,
+                      enabled: !isSubmitting,
+                      decoration: InputDecoration(
+                        hintText: 'Enter your current password',
+                        filled: true,
+                        fillColor: const Color(0xFFF3F4F6),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        suffixIcon: IconButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    obscurePassword = !obscurePassword;
+                                  });
+                                },
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFFE7000B),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop();
+                        },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final password = passwordController.text;
+
+                          if (password.isEmpty) {
+                            setDialogState(() {
+                              errorMessage =
+                                  'Please enter your current password.';
+                            });
+
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                            errorMessage = null;
+                          });
+
+                          final error = await _deleteAccount(password);
+
+                          if (!dialogContext.mounted) {
+                            return;
+                          }
+
+                          if (error == null) {
+                            Navigator.of(dialogContext).pop();
+
+                            if (!mounted) {
+                              return;
+                            }
+
+                            Navigator.pushAndRemoveUntil(
+                              this.context,
+                              MaterialPageRoute(
+                                builder: (_) => const AuthGate(),
+                              ),
+                              (route) => false,
+                            );
+
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSubmitting = false;
+                            errorMessage = error;
+                          });
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE7000B),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Delete Permanently'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    passwordController.dispose();
   }
 
   @override
@@ -713,15 +940,7 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
           _buildPrivacyAction(
             title: 'Delete Account',
             isDestructive: true,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Delete Account will be connected with Firebase',
-                  ),
-                ),
-              );
-            },
+            onTap: _isDeletingAccount ? () {} : _showDeleteAccountDialog,
           ),
         ],
       ),
