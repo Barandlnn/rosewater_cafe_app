@@ -9,8 +9,6 @@ class MembershipScreen extends StatefulWidget {
 }
 
 class _MembershipScreenState extends State<MembershipScreen> {
-
-  
   String _selectedPlan = 'Premium';
 
   void _selectPlan(String plan) {

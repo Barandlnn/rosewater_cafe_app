@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/usage_model.dart';
+
 class UsageService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -34,9 +36,7 @@ class UsageService {
     });
   }
 
-  static Future<Map<String, dynamic>?> getCurrentUsage({
-    required String uid,
-  }) async {
+  static Future<UsageModel?> getCurrentUsage({required String uid}) async {
     final monthId = currentMonthId;
 
     final document = await _firestore
@@ -50,6 +50,12 @@ class UsageService {
       return null;
     }
 
-    return document.data();
+    final data = document.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    return UsageModel.fromMap(data);
   }
 }

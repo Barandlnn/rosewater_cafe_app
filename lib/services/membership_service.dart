@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/membership_model.dart';
 import 'usage_service.dart';
 
 class MembershipService {
@@ -60,16 +61,20 @@ class MembershipService {
     await batch.commit();
   }
 
-  static Future<Map<String, dynamic>?> getMembership({
-    required String uid,
-  }) async {
+  static Future<MembershipModel?> getMembership({required String uid}) async {
     final document = await _firestore.collection('memberships').doc(uid).get();
 
     if (!document.exists) {
       return null;
     }
 
-    return document.data();
+    final data = document.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    return MembershipModel.fromMap(data);
   }
 
   static int _getMaxGuests(String plan) {

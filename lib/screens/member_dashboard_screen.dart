@@ -61,7 +61,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     }
 
     setState(() {
-      _memberName = profile['fullName'] as String? ?? _memberName;
+      _memberName = profile.fullName.isEmpty ? _memberName : profile.fullName;
     });
   }
 
@@ -78,12 +78,10 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
       return;
     }
 
-    final validUntilTimestamp = membership['validUntil'] as Timestamp?;
-
     String formattedValidUntil = '-';
 
-    if (validUntilTimestamp != null) {
-      final date = validUntilTimestamp.toDate();
+    if (membership.validUntil != null) {
+      final date = membership.validUntil!;
 
       formattedValidUntil = '${date.month}/${date.day}/${date.year}';
     }
@@ -93,11 +91,11 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
     }
 
     setState(() {
-      _memberId = membership['memberId'] as String? ?? _memberId;
-
-      _membershipPlan = membership['plan'] as String? ?? _membershipPlan;
-
-      _maxGuests = membership['maxGuests'] as int? ?? _maxGuests;
+      _memberId = membership.memberId.isEmpty ? _memberId : membership.memberId;
+      _membershipPlan = membership.plan.isEmpty
+          ? _membershipPlan
+          : membership.plan;
+      _maxGuests = membership.maxGuests;
 
       _validUntil = formattedValidUntil;
     });
@@ -122,14 +120,15 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
       return;
     }
 
+    final currentUsage = usage;
+
     if (!mounted) {
       return;
     }
 
     setState(() {
-      _hookahUsed = usage?['hookahUsed'] as int? ?? 0;
-
-      _drinksUsed = usage?['drinksUsed'] as int? ?? 0;
+      _hookahUsed = currentUsage.hookahUsed;
+      _drinksUsed = currentUsage.drinksUsed;
     });
   }
 
@@ -646,7 +645,7 @@ class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(18),
-                               onTap: () async {
+                                onTap: () async {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(

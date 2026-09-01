@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_profile_model.dart';
 
 class UserService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -16,16 +17,20 @@ class UserService {
     });
   }
 
-  static Future<Map<String, dynamic>?> getUserProfile({
-    required String uid,
-  }) async {
+  static Future<UserProfileModel?> getUserProfile({required String uid}) async {
     final document = await _firestore.collection('users').doc(uid).get();
 
     if (!document.exists) {
       return null;
     }
 
-    return document.data();
+    final data = document.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    return UserProfileModel.fromMap(data);
   }
 
   static Future<void> updateUserProfile({

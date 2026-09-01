@@ -63,20 +63,13 @@ class _NotificationSettingsScreenState
       }
 
       setState(() {
-        _pushNotifications = settings?['pushNotifications'] as bool? ?? true;
-
-        _emailNotifications = settings?['emailNotifications'] as bool? ?? true;
-
-        _smsNotifications = settings?['smsNotifications'] as bool? ?? false;
-
-        _soundAndVibration = settings?['soundAndVibration'] as bool? ?? true;
-
-        _eventReminders = settings?['eventReminders'] as bool? ?? true;
-
-        _allowanceAlerts = settings?['allowanceAlerts'] as bool? ?? true;
-
-        _promotionsAndOffers =
-            settings?['promotionsAndOffers'] as bool? ?? true;
+        _pushNotifications = settings?.pushNotifications ?? true;
+        _emailNotifications = settings?.emailNotifications ?? true;
+        _smsNotifications = settings?.smsNotifications ?? false;
+        _soundAndVibration = settings?.soundAndVibration ?? true;
+        _eventReminders = settings?.eventReminders ?? true;
+        _allowanceAlerts = settings?.allowanceAlerts ?? true;
+        _promotionsAndOffers = settings?.promotionsAndOffers ?? true;
 
         _isLoading = false;
       });

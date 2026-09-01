@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../services/reservation_service.dart';
@@ -49,9 +48,7 @@ class _ReservationConfirmedScreenState
         return;
       }
 
-      final eventDateTime = reservation['eventDateTime'];
-
-      if (eventDateTime is! Timestamp) {
+      if (reservation.eventDateTime == null) {
         setState(() {
           _isLoading = false;
           _errorMessage = 'Reservation data is invalid.';
@@ -61,11 +58,9 @@ class _ReservationConfirmedScreenState
       }
 
       setState(() {
-        _eventDateTime = eventDateTime.toDate();
-
-        _duration = (reservation['duration'] as num?)?.toInt() ?? 0;
-
-        _guestCount = (reservation['guestCount'] as num?)?.toInt() ?? 0;
+        _eventDateTime = reservation.eventDateTime;
+        _duration = reservation.duration;
+        _guestCount = reservation.guestCount;
 
         _isLoading = false;
       });

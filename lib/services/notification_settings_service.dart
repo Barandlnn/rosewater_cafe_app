@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/notification_settings_model.dart';
+
 class NotificationSettingsService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -13,7 +15,7 @@ class NotificationSettingsService {
         .doc('notifications');
   }
 
-  static Future<Map<String, dynamic>?> getSettings({
+  static Future<NotificationSettingsModel?> getSettings({
     required String uid,
   }) async {
     final snapshot = await _settingsReference(uid: uid).get();
@@ -22,7 +24,13 @@ class NotificationSettingsService {
       return null;
     }
 
-    return snapshot.data();
+    final data = snapshot.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    return NotificationSettingsModel.fromMap(data);
   }
 
   static Future<void> createDefaultSettings({required String uid}) async {

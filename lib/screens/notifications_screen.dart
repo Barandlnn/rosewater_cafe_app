@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../models/notification_model.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 
@@ -12,15 +13,13 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  List<Map<String, dynamic>> _notifications = [];
+  List<NotificationModel> _notifications = [];
 
   bool _isLoading = true;
   String? _errorMessage;
 
   int get _unreadCount {
-    return _notifications.where((notification) {
-      return notification['isRead'] != true;
-    }).length;
+    return _notifications.where((notification) => !notification.isRead).length;
   }
 
   @override
@@ -74,11 +73,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     }
   }
-  Future<void> _markAsRead(Map<String, dynamic> notification) async {
-    final user = AuthService.currentUser;
-    final notificationId = notification['id'] as String?;
 
-    if (user == null || notificationId == null) {
+  Future<void> _markAsRead(NotificationModel notification) async {
+    final user = AuthService.currentUser;
+    final notificationId = notification.id;
+
+    if (user == null) {
       return;
     }
 
@@ -94,11 +94,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       setState(() {
         final index = _notifications.indexWhere(
-          (item) => item['id'] == notificationId,
+          (item) => item.id == notificationId,
         );
 
         if (index != -1) {
-          _notifications[index] = {..._notifications[index], 'isRead': true};
+          _notifications[index] = _notifications[index].copyWith(isRead: true);
         }
       });
     } on FirebaseException catch (error) {
@@ -116,11 +116,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Future<void> _deleteNotification(Map<String, dynamic> notification) async {
+  Future<void> _deleteNotification(NotificationModel notification) async {
     final user = AuthService.currentUser;
-    final notificationId = notification['id'] as String?;
+    final notificationId = notification.id;
 
-    if (user == null || notificationId == null) {
+    if (user == null) {
       return;
     }
 
@@ -135,7 +135,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
 
       setState(() {
-        _notifications.removeWhere((item) => item['id'] == notificationId);
+        _notifications.removeWhere((item) => item.id == notificationId);
       });
     } on FirebaseException catch (error) {
       if (!mounted) {
@@ -207,12 +207,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  String _formatNotificationTime(dynamic value) {
-    if (value is! Timestamp) {
+  String _formatNotificationTime(DateTime? date) {
+    if (date == null) {
       return '';
     }
 
-    final date = value.toDate();
     final now = DateTime.now();
     final difference = now.difference(date);
 
@@ -235,11 +234,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return '${date.month}/${date.day}/${date.year}';
   }
 
-  void _showDetails(Map<String, dynamic> notification) {
-    final title = notification['title'] as String? ?? 'Notification';
-
+  void _showDetails(NotificationModel notification) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$title details will be connected later')),
+      SnackBar(
+        content: Text('${notification.title} details will be connected later'),
+      ),
     );
   }
 
@@ -377,18 +376,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationCard(Map<String, dynamic> notification) {
-    final bool isUnread = notification['isRead'] != true;
-
-    final String title = notification['title'] as String? ?? 'Notification';
-
-    final String message = notification['message'] as String? ?? '';
-
-    final String type = notification['type'] as String? ?? 'info';
-
-    final bool hasDetails = notification['hasDetails'] == true;
-
-    final dynamic createdAt = notification['createdAt'];
+  Widget _buildNotificationCard(NotificationModel notification) {
+    final isUnread = !notification.isRead;
+    final title = notification.title;
+    final message = notification.message;
+    final type = notification.type;
+    final hasDetails = notification.hasDetails;
+    final createdAt = notification.createdAt;
 
     return Container(
       width: double.infinity,

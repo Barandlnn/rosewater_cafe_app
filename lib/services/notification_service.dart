@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/notification_model.dart';
+
 class NotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -9,16 +11,19 @@ class NotificationService {
     return _firestore.collection('users').doc(uid).collection('notifications');
   }
 
-  static Future<List<Map<String, dynamic>>> getNotifications({
+  static Future<List<NotificationModel>> getNotifications({
     required String uid,
   }) async {
     final snapshot = await _notificationsReference(
       uid: uid,
     ).orderBy('createdAt', descending: true).get();
 
-    return snapshot.docs.map((document) {
-      return {'id': document.id, ...document.data()};
-    }).toList();
+    return snapshot.docs
+        .map(
+          (document) =>
+              NotificationModel.fromMap(id: document.id, map: document.data()),
+        )
+        .toList();
   }
 
   static Future<void> createReservationConfirmation({

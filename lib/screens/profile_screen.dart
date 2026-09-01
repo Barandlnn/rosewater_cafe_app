@@ -11,7 +11,6 @@ import 'app_settings_screen.dart';
 import '../services/auth_service.dart';
 import 'auth_gate.dart';
 import '../services/user_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/membership_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -53,9 +52,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     setState(() {
-      _memberName = profile['fullName'] as String? ?? _memberName;
-      _email = profile['email'] as String? ?? _email;
-      _phone = profile['phone'] as String? ?? _phone;
+      _memberName = profile.fullName.isEmpty ? _memberName : profile.fullName;
+      _email = profile.email.isEmpty ? _email : profile.email;
+      _phone = profile.phone.isEmpty ? _phone : profile.phone;
     });
   }
 
@@ -72,12 +71,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    final validUntilTimestamp = membership['validUntil'] as Timestamp?;
-
     String formattedValidUntil = '-';
 
-    if (validUntilTimestamp != null) {
-      final date = validUntilTimestamp.toDate();
+    if (membership.validUntil != null) {
+      final date = membership.validUntil!;
 
       formattedValidUntil = '${date.month}/${date.day}/${date.year}';
     }
@@ -87,11 +84,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     setState(() {
-      _memberId = membership['memberId'] as String? ?? _memberId;
-
-      _membershipPlan = membership['plan'] as String? ?? _membershipPlan;
-
-      _maxGuests = membership['maxGuests'] as int? ?? _maxGuests;
+      _memberId = membership.memberId.isEmpty ? _memberId : membership.memberId;
+      _membershipPlan = membership.plan.isEmpty
+          ? _membershipPlan
+          : membership.plan;
+      _maxGuests = membership.maxGuests;
 
       _validUntil = formattedValidUntil;
     });

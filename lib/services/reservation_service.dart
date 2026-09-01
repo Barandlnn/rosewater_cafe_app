@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/reservation_model.dart';
 
 class ReservationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -65,7 +66,7 @@ class ReservationService {
     return reservationId;
   }
 
-  static Future<Map<String, dynamic>?> getReservationById({
+  static Future<ReservationModel?> getReservationById({
     required String reservationId,
   }) async {
     final document = await _firestore
@@ -83,6 +84,6 @@ class ReservationService {
       return null;
     }
 
-    return {'id': document.id, ...data};
+    return ReservationModel.fromMap(id: document.id, map: data);
   }
 }
