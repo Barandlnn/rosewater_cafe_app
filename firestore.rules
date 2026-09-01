@@ -36,13 +36,67 @@ service cloud.firestore {
              && currentMembership().validUntil > request.time;
     }
 
+    function privateEvent() {
+      return get(
+        /databases/$(database)/documents/events/private_event
+      ).data;
+    }
+
     // ---------------------------------------------------------
     // USERS
     // ---------------------------------------------------------
 
     match /users/{userId} {
 
-      allow read, create, update: if isOwner(userId);
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+
+                    && request.resource.data.keys().hasOnly([
+                      'fullName',
+                      'email',
+                      'phone',
+                      'createdAt'
+                    ])
+
+                    && request.resource.data.fullName is string
+
+                    && request.resource.data.fullName.size() > 0
+
+                    && request.resource.data.email is string
+
+                    && request.resource.data.email
+                       == request.auth.token.email
+
+                    && request.resource.data.phone is string
+
+                    && request.resource.data.createdAt == request.time;
+
+      allow update: if isOwner(userId)
+
+                    && request.resource.data
+                        .diff(resource.data)
+                        .affectedKeys()
+                        .hasOnly([
+                          'fullName',
+                          'phone',
+                          'updatedAt'
+                        ])
+
+                    && request.resource.data.fullName is string
+
+                    && request.resource.data.fullName.size() > 0
+
+                    && request.resource.data.phone is string
+
+                    && request.resource.data.email
+                       == resource.data.email
+
+                    && request.resource.data.createdAt
+                       == resource.data.createdAt
+
+                    && request.resource.data.updatedAt
+                       == request.time;
 
       allow delete: if false;
     }
@@ -53,10 +107,8 @@ service cloud.firestore {
 
     match /users/{userId}/settings/notifications {
 
-      // Kullanıcı yalnızca kendi notification ayarlarını okuyabilir.
       allow read: if isOwner(userId);
 
-      // İlk settings document'ı yalnızca geçerli alanlarla oluşturulabilir.
       allow create: if isOwner(userId)
 
                     && request.resource.data.keys().hasOnly([
@@ -72,24 +124,16 @@ service cloud.firestore {
                     ])
 
                     && request.resource.data.pushNotifications is bool
-
                     && request.resource.data.emailNotifications is bool
-
                     && request.resource.data.smsNotifications is bool
-
                     && request.resource.data.soundAndVibration is bool
-
                     && request.resource.data.eventReminders is bool
-
                     && request.resource.data.allowanceAlerts is bool
-
                     && request.resource.data.promotionsAndOffers is bool
 
                     && request.resource.data.createdAt == request.time
-
                     && request.resource.data.updatedAt == request.time;
 
-      // Kullanıcı yalnızca notification tercihlerini değiştirebilir.
       allow update: if isOwner(userId)
 
                     && request.resource.data
@@ -107,17 +151,11 @@ service cloud.firestore {
                         ])
 
                     && request.resource.data.pushNotifications is bool
-
                     && request.resource.data.emailNotifications is bool
-
                     && request.resource.data.smsNotifications is bool
-
                     && request.resource.data.soundAndVibration is bool
-
                     && request.resource.data.eventReminders is bool
-
                     && request.resource.data.allowanceAlerts is bool
-
                     && request.resource.data.promotionsAndOffers is bool
 
                     && request.resource.data.updatedAt == request.time;
@@ -131,11 +169,8 @@ service cloud.firestore {
 
     match /users/{userId}/notifications/{notificationId} {
 
-      // Kullanıcı yalnızca kendi notification'larını okuyabilir.
       allow read: if isOwner(userId);
 
-      // Kullanıcı yalnızca kendisine ait gerçek bir rezervasyon
-      // için confirmation notification oluşturabilir.
       allow create: if isOwner(userId)
 
                     && request.resource.data.keys().hasOnly([
@@ -178,7 +213,6 @@ service cloud.firestore {
 
                     && request.resource.data.updatedAt == request.time;
 
-      // Kullanıcı sadece isRead ve updatedAt alanlarını değiştirebilir.
       allow update: if isOwner(userId)
 
                     && request.resource.data
@@ -193,7 +227,6 @@ service cloud.firestore {
 
                     && request.resource.data.updatedAt == request.time;
 
-      // Kullanıcı yalnızca kendi notification document'ını silebilir.
       allow delete: if isOwner(userId);
     }
 
@@ -203,11 +236,8 @@ service cloud.firestore {
 
     match /memberships/{userId} {
 
-      // Kullanıcı yalnızca kendi membership kaydını okuyabilir.
       allow read: if isOwner(userId);
 
-      // Kullanıcı yalnızca kendi UID'si altında
-      // ilk membership kaydını oluşturabilir.
       allow create: if isOwner(userId)
 
                     && request.resource.data.keys().hasOnly([
@@ -231,12 +261,24 @@ service cloud.firestore {
 
                     && request.resource.data.memberId is string
 
+                    && request.resource.data.memberId.size() > 0
+
                     && request.resource.data.startedAt is timestamp
 
                     && request.resource.data.validUntil is timestamp
 
+                    && request.resource.data.startedAt
+                       >= request.time - duration.value(5, 'm')
+
+                    && request.resource.data.startedAt
+                       <= request.time + duration.value(5, 'm')
+
                     && request.resource.data.validUntil
                        > request.resource.data.startedAt
+
+                    && request.resource.data.validUntil
+                       <= request.resource.data.startedAt
+                          + duration.value(366, 'd')
 
                     && request.resource.data.maxGuests is int
 
@@ -255,7 +297,11 @@ service cloud.firestore {
                         request.resource.data.plan == 'VIP'
                         && request.resource.data.maxGuests == 2
                       )
-                    );
+                    )
+
+                    && request.resource.data.createdAt == request.time
+
+                    && request.resource.data.updatedAt == request.time;
 
       allow update, delete: if false;
     }
@@ -266,10 +312,8 @@ service cloud.firestore {
 
     match /usage/{userId}/months/{monthId} {
 
-      // Kullanıcı yalnızca kendi usage verisini okuyabilir.
       allow read: if isOwner(userId);
 
-      // İlk aylık usage kaydı yalnızca 0 / 0 ile oluşturulabilir.
       allow create: if isOwner(userId)
 
                     && request.resource.data.keys().hasOnly([
@@ -279,11 +323,18 @@ service cloud.firestore {
                       'updatedAt'
                     ])
 
+                    && request.resource.data.hookahUsed is int
+
                     && request.resource.data.hookahUsed == 0
 
-                    && request.resource.data.drinksUsed == 0;
+                    && request.resource.data.drinksUsed is int
 
-      // Kullanıcı usage değerlerini değiştiremez.
+                    && request.resource.data.drinksUsed == 0
+
+                    && request.resource.data.createdAt == request.time
+
+                    && request.resource.data.updatedAt == request.time;
+
       allow update, delete: if false;
     }
 
@@ -293,12 +344,8 @@ service cloud.firestore {
 
     match /events/{eventId} {
 
-      // Yalnızca aktif membership sahibi kullanıcı
-      // event verilerini okuyabilir.
       allow read: if hasActiveMembership();
 
-      // Normal uygulama kullanıcısı
-      // event oluşturamaz veya değiştiremez.
       allow create, update, delete: if false;
     }
 
@@ -308,15 +355,85 @@ service cloud.firestore {
 
     match /reservations/{reservationId} {
 
-      // Yeni reservation oluşturmak için
-      // aktif membership zorunludur.
       allow create: if hasActiveMembership()
 
-                    && request.resource.data.userId
-                       == request.auth.uid;
+                    && exists(
+                      /databases/$(database)/documents/events/private_event
+                    )
 
-      // Kullanıcı membership'i daha sonra sona erse bile
-      // kendi geçmiş reservation kaydını okuyabilir.
+                    && privateEvent().isActive == true
+
+                    && request.resource.data.keys().hasOnly([
+                      'userId',
+                      'eventId',
+                      'eventType',
+                      'eventDateTime',
+                      'duration',
+                      'guestCount',
+                      'baseRate',
+                      'estimatedTotal',
+                      'currency',
+                      'status',
+                      'createdAt',
+                      'updatedAt'
+                    ])
+
+                    && request.resource.data.userId
+                       == request.auth.uid
+
+                    && request.resource.data.eventId
+                       == 'private_event'
+
+                    && request.resource.data.eventType is string
+
+                    && request.resource.data.eventType.size() > 0
+
+                    && request.resource.data.eventType.size() <= 80
+
+                    && request.resource.data.eventDateTime is timestamp
+
+                    && request.resource.data.eventDateTime
+                       > request.time
+
+                    && request.resource.data.duration is int
+
+                    && request.resource.data.duration > 0
+
+                    && request.resource.data.duration <= 24
+
+                    && request.resource.data.guestCount is int
+
+                    && request.resource.data.guestCount
+                       >= privateEvent().minGuests
+
+                    && request.resource.data.guestCount
+                       <= privateEvent().maxGuests
+
+                    && request.resource.data.baseRate is number
+
+                    && request.resource.data.baseRate
+                       == privateEvent().baseRate
+
+                    && request.resource.data.estimatedTotal is number
+
+                    && request.resource.data.estimatedTotal
+                       == privateEvent().baseRate
+                          * request.resource.data.duration
+
+                    && request.resource.data.currency is string
+
+                    && request.resource.data.currency
+                       == privateEvent().currency
+
+                    && request.resource.data.status
+                       == 'confirmed'
+
+                    && request.resource.data.createdAt
+                       == request.time
+
+                    && request.resource.data.updatedAt
+                       == request.time;
+
       allow read: if isOwner(resource.data.userId);
 
       allow update, delete: if false;
@@ -328,7 +445,6 @@ service cloud.firestore {
 
     match /doorAccessRequests/{requestId} {
 
-      // Door access için aktif membership zorunludur.
       allow create: if hasActiveMembership()
 
                     && request.resource.data.keys().hasOnly([
@@ -376,10 +492,8 @@ service cloud.firestore {
                     && request.resource.data.guestCount
                        <= currentMembership().maxGuests;
 
-      // Kullanıcı yalnızca kendi door access request'ini okuyabilir.
       allow read: if isOwner(resource.data.userId);
 
-      // Client access request'i değiştiremez veya silemez.
       allow update, delete: if false;
     }
 
