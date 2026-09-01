@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
 import '../services/membership_service.dart';
-import '../services/usage_service.dart';
 import 'member_dashboard_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -136,12 +135,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
     });
 
     try {
-      await MembershipService.createMembership(
+      await MembershipService.createMembershipWithUsage(
         uid: user.uid,
         plan: widget.selectedPlan,
       );
-
-      await UsageService.createMonthlyUsage(uid: user.uid);
 
       if (!mounted) {
         return;

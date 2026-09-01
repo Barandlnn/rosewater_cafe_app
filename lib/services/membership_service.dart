@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'usage_service.dart';
+
 class MembershipService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static Future<void> createMembership({
+  static Future<void> createMembershipWithUsage({
     required String uid,
     required String plan,
   }) async {
@@ -15,7 +17,23 @@ class MembershipService {
 
     final maxGuests = _getMaxGuests(plan);
 
-    await _firestore.collection('memberships').doc(uid).set({
+    final monthId = UsageService.currentMonthId;
+
+    final membershipReference = _firestore.collection('memberships').doc(uid);
+
+    final usageReference = _firestore
+        .collection('usage')
+        .doc(uid)
+        .collection('months')
+        .doc(monthId);
+
+    final batch = _firestore.batch();
+
+    // ---------------------------------------------------------
+    // MEMBERSHIP
+    // ---------------------------------------------------------
+
+    batch.set(membershipReference, {
       'plan': plan,
       'status': 'active',
       'memberId': memberId,
@@ -25,6 +43,21 @@ class MembershipService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // ---------------------------------------------------------
+    // INITIAL MONTHLY USAGE
+    // ---------------------------------------------------------
+
+    batch.set(usageReference, {
+      'hookahUsed': 0,
+      'drinksUsed': 0,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Membership + usage birlikte başarılı olur veya
+    // ikisi de Firestore'a yazılmaz.
+    await batch.commit();
   }
 
   static Future<Map<String, dynamic>?> getMembership({
