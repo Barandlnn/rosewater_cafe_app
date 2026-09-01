@@ -62,24 +62,14 @@ class _EventReservationScreenState extends State<EventReservationScreen> {
       return;
     }
 
-    final packageIncludes = event['packageIncludes'];
-
     setState(() {
-      _baseRate = (event['baseRate'] as num?)?.toDouble() ?? _baseRate;
-
-      _minGuests = (event['minGuests'] as num?)?.toInt() ?? _minGuests;
-
-      _maxGuests = (event['maxGuests'] as num?)?.toInt() ?? _maxGuests;
-
-      _currency = event['currency'] as String? ?? _currency;
-
-      _eventDescription = event['description'] as String? ?? _eventDescription;
-
-      _isEventActive = event['isActive'] as bool? ?? _isEventActive;
-
-      if (packageIncludes is List) {
-        _packageIncludes = packageIncludes.whereType<String>().toList();
-      }
+      _baseRate = event.baseRate;
+      _minGuests = event.minGuests;
+      _maxGuests = event.maxGuests;
+      _currency = event.currency;
+      _eventDescription = event.description;
+      _isEventActive = event.isActive;
+      _packageIncludes = event.packageIncludes;
     });
   }
 

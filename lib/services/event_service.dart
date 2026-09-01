@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/event_model.dart';
+
 class EventService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static Future<Map<String, dynamic>?> getPrivateEvent() async {
+  static Future<EventModel?> getPrivateEvent() async {
     final document = await _firestore
         .collection('events')
         .doc('private_event')
@@ -13,6 +15,12 @@ class EventService {
       return null;
     }
 
-    return document.data();
+    final data = document.data();
+
+    if (data == null) {
+      return null;
+    }
+
+    return EventModel.fromMap(data);
   }
 }
