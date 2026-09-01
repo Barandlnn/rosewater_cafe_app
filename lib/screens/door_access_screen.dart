@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -23,25 +25,93 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
   int _guestCount = 0;
 
   String? _accessRequestId;
+  DateTime? _accessExpiresAt;
+
   bool _isCreatingAccessRequest = false;
   String? _accessError;
 
-  int get _maxGuests => widget.membershipPlan == 'Basic' ? 1 : 2;
+  Timer? _expiryTimer;
+  int _remainingSeconds = 0;
+
+  int get _maxGuests {
+    return widget.membershipPlan == 'Basic' ? 1 : 2;
+  }
+
+  bool get _hasActiveAccessRequest {
+    return _accessRequestId != null && _remainingSeconds > 0;
+  }
+
+  String get _formattedRemainingTime {
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
 
   void _changeGuests(int amount) {
+    if (_hasActiveAccessRequest || _isCreatingAccessRequest) {
+      return;
+    }
+
     final nextCount = _guestCount + amount;
 
-    if (nextCount < 0 || nextCount > _maxGuests) return;
+    if (nextCount < 0 || nextCount > _maxGuests) {
+      return;
+    }
 
     setState(() {
       _guestCount = nextCount;
     });
   }
 
+  void _startExpiryTimer() {
+    _expiryTimer?.cancel();
+
+    _updateRemainingTime();
+
+    _expiryTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateRemainingTime();
+    });
+  }
+
+  void _updateRemainingTime() {
+    final expiresAt = _accessExpiresAt;
+
+    if (expiresAt == null || !mounted) {
+      return;
+    }
+
+    final remainingSeconds = expiresAt.difference(DateTime.now()).inSeconds;
+
+    if (remainingSeconds <= 0) {
+      _expiryTimer?.cancel();
+
+      setState(() {
+        _remainingSeconds = 0;
+        _accessRequestId = null;
+        _accessExpiresAt = null;
+      });
+
+      return;
+    }
+
+    setState(() {
+      _remainingSeconds = remainingSeconds;
+    });
+  }
+
   Future<void> _createAccessRequest() async {
     final user = AuthService.currentUser;
 
-    if (user == null || _isCreatingAccessRequest) {
+    if (user == null) {
+      setState(() {
+        _accessError = 'You must be signed in to prepare door access.';
+      });
+
+      return;
+    }
+
+    if (_isCreatingAccessRequest || _hasActiveAccessRequest) {
       return;
     }
 
@@ -51,7 +121,7 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
     });
 
     try {
-      final accessRequestId = await DoorAccessService.createAccessRequest(
+      final accessRequest = await DoorAccessService.createAccessRequest(
         uid: user.uid,
         memberId: widget.memberId,
         membershipPlan: widget.membershipPlan,
@@ -63,10 +133,13 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
       }
 
       setState(() {
-        _accessRequestId = accessRequestId;
+        _accessRequestId = accessRequest.id;
+        _accessExpiresAt = accessRequest.expiresAt;
         _isCreatingAccessRequest = false;
         _accessError = null;
       });
+
+      _startExpiryTimer();
     } on FirebaseException catch (error) {
       if (!mounted) {
         return;
@@ -89,10 +162,16 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
   }
 
   @override
+  void dispose() {
+    _expiryTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final qrData = _accessRequestId == null
-        ? null
-        : 'rosewater-access:$_accessRequestId';
+    final String? qrData = _hasActiveAccessRequest
+        ? 'rosewater-access:$_accessRequestId'
+        : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7FB),
@@ -118,7 +197,9 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
@@ -143,7 +224,9 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+
                     const SizedBox(height: 28),
+
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -171,7 +254,8 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                                   ),
                                   SizedBox(height: 12),
                                   Text(
-                                    'Prepare door access\nto generate your QR code',
+                                    'Prepare door access\n'
+                                    'to generate your QR code',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: Color(0xFF6A7282),
@@ -189,9 +273,24 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                               backgroundColor: Colors.white,
                             ),
                     ),
+
+                    if (_hasActiveAccessRequest) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'QR expires in $_formattedRemainingTime',
+                        style: const TextStyle(
+                          color: Color(0xFF6A7282),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
+
                     const Text(
-                      'Scan this QR code at the entrance\nto unlock the door',
+                      'Scan this QR code at the entrance\n'
+                      'to unlock the door',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Color(0xFF4A5565),
@@ -199,7 +298,9 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                         height: 1.45,
                       ),
                     ),
+
                     const SizedBox(height: 44),
+
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
@@ -211,25 +312,34 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 12),
+
                     Text(
-                      'You can bring up to $_maxGuests guests with your ${widget.membershipPlan.toLowerCase()} membership',
+                      'You can bring up to $_maxGuests guests with your '
+                      '${widget.membershipPlan.toLowerCase()} membership',
                       style: const TextStyle(
                         color: Color(0xFF4A5565),
                         fontSize: 16,
                         height: 1.45,
                       ),
                     ),
+
                     const SizedBox(height: 24),
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _GuestButton(
                           icon: Icons.remove,
-                          onPressed: _guestCount > 0
+                          onPressed:
+                              _guestCount > 0 &&
+                                  !_hasActiveAccessRequest &&
+                                  !_isCreatingAccessRequest
                               ? () => _changeGuests(-1)
                               : null,
                         ),
+
                         SizedBox(
                           width: 150,
                           height: 56,
@@ -244,7 +354,9 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                                     color: Color(0xFF4A5565),
                                     size: 20,
                                   ),
+
                                   const SizedBox(width: 8),
+
                                   Text(
                                     '$_guestCount',
                                     style: const TextStyle(
@@ -256,7 +368,9 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                                   ),
                                 ],
                               ),
+
                               const SizedBox(height: 4),
+
                               const Text(
                                 'Guests',
                                 style: TextStyle(
@@ -268,15 +382,21 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                             ],
                           ),
                         ),
+
                         _GuestButton(
                           icon: Icons.add,
-                          onPressed: _guestCount < _maxGuests
+                          onPressed:
+                              _guestCount < _maxGuests &&
+                                  !_hasActiveAccessRequest &&
+                                  !_isCreatingAccessRequest
                               ? () => _changeGuests(1)
                               : null,
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 36),
+
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -302,13 +422,17 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                             ),
                             TextSpan(
                               text:
-                                  'Your monthly allowance covers your orders only. Guest orders will receive member discounts but are paid separately.',
+                                  'Your monthly allowance covers your orders '
+                                  'only. Guest orders will receive member '
+                                  'discounts but are paid separately.',
                             ),
                           ],
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 32),
+
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -320,16 +444,18 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: TextButton(
-                          onPressed: _isCreatingAccessRequest
+                          onPressed:
+                              _isCreatingAccessRequest ||
+                                  _hasActiveAccessRequest
                               ? null
                               : _createAccessRequest,
                           child: Text(
                             _isCreatingAccessRequest
                                 ? 'Preparing...'
-                                : _accessRequestId == null
-                                ? 'Prepare Door Access'
-                                : 'Refresh Door Access',
-                            style: TextStyle(
+                                : _hasActiveAccessRequest
+                                ? 'Door Access Active'
+                                : 'Prepare Door Access',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -338,6 +464,7 @@ class _DoorAccessScreenState extends State<DoorAccessScreen> {
                         ),
                       ),
                     ),
+
                     if (_accessError != null) ...[
                       const SizedBox(height: 12),
                       Text(

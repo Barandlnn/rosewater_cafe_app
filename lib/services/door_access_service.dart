@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DoorAccessService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static Future<String> createAccessRequest({
+  static Future<({String id, DateTime expiresAt})> createAccessRequest({
     required String uid,
     required String memberId,
     required String membershipPlan,
@@ -23,6 +23,6 @@ class DoorAccessService {
           'expiresAt': Timestamp.fromDate(expiresAt),
         });
 
-    return documentReference.id;
+    return (id: documentReference.id, expiresAt: expiresAt);
   }
 }

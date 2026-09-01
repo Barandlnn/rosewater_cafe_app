@@ -8,58 +8,27 @@ service cloud.firestore {
     // ---------------------------------------------------------
 
     match /users/{userId} {
-
       allow read, create, update: if request.auth != null
                                   && request.auth.uid == userId;
 
       allow delete: if false;
     }
 
-   // ---------------------------------------------------------
-// NOTIFICATION SETTINGS
-// ---------------------------------------------------------
+    // ---------------------------------------------------------
+    // NOTIFICATION SETTINGS
+    // ---------------------------------------------------------
 
-match /users/{userId}/settings/notifications {
+    match /users/{userId}/settings/notifications {
 
-  // Kullanıcı yalnızca kendi notification ayarlarını okuyabilir.
-  allow read: if request.auth != null
-              && request.auth.uid == userId;
+      // Kullanıcı yalnızca kendi notification ayarlarını okuyabilir.
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
 
-  // İlk settings document'ı yalnızca geçerli alanlarla oluşturulabilir.
-  allow create: if request.auth != null
-                && request.auth.uid == userId
+      // İlk settings document'ı yalnızca geçerli alanlarla oluşturulabilir.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
 
-                && request.resource.data.keys().hasOnly([
-                  'pushNotifications',
-                  'emailNotifications',
-                  'smsNotifications',
-                  'soundAndVibration',
-                  'eventReminders',
-                  'allowanceAlerts',
-                  'promotionsAndOffers',
-                  'createdAt',
-                  'updatedAt'
-                ])
-
-                && request.resource.data.pushNotifications is bool
-                && request.resource.data.emailNotifications is bool
-                && request.resource.data.smsNotifications is bool
-                && request.resource.data.soundAndVibration is bool
-                && request.resource.data.eventReminders is bool
-                && request.resource.data.allowanceAlerts is bool
-                && request.resource.data.promotionsAndOffers is bool
-
-                && request.resource.data.createdAt == request.time
-                && request.resource.data.updatedAt == request.time;
-
-  // Kullanıcı sadece notification tercihlerini değiştirebilir.
-  allow update: if request.auth != null
-                && request.auth.uid == userId
-
-                && request.resource.data
-                    .diff(resource.data)
-                    .affectedKeys()
-                    .hasOnly([
+                    && request.resource.data.keys().hasOnly([
                       'pushNotifications',
                       'emailNotifications',
                       'smsNotifications',
@@ -67,97 +36,127 @@ match /users/{userId}/settings/notifications {
                       'eventReminders',
                       'allowanceAlerts',
                       'promotionsAndOffers',
+                      'createdAt',
                       'updatedAt'
                     ])
 
-                && request.resource.data.pushNotifications is bool
-                && request.resource.data.emailNotifications is bool
-                && request.resource.data.smsNotifications is bool
-                && request.resource.data.soundAndVibration is bool
-                && request.resource.data.eventReminders is bool
-                && request.resource.data.allowanceAlerts is bool
-                && request.resource.data.promotionsAndOffers is bool
+                    && request.resource.data.pushNotifications is bool
+                    && request.resource.data.emailNotifications is bool
+                    && request.resource.data.smsNotifications is bool
+                    && request.resource.data.soundAndVibration is bool
+                    && request.resource.data.eventReminders is bool
+                    && request.resource.data.allowanceAlerts is bool
+                    && request.resource.data.promotionsAndOffers is bool
 
-                && request.resource.data.updatedAt == request.time;
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.updatedAt == request.time;
 
-  allow delete: if false;
-}
+      // Kullanıcı sadece notification tercihlerini değiştirebilir.
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
 
-   // ---------------------------------------------------------
-// NOTIFICATIONS
-// ---------------------------------------------------------
+                    && request.resource.data
+                        .diff(resource.data)
+                        .affectedKeys()
+                        .hasOnly([
+                          'pushNotifications',
+                          'emailNotifications',
+                          'smsNotifications',
+                          'soundAndVibration',
+                          'eventReminders',
+                          'allowanceAlerts',
+                          'promotionsAndOffers',
+                          'updatedAt'
+                        ])
 
-match /users/{userId}/notifications/{notificationId} {
+                    && request.resource.data.pushNotifications is bool
+                    && request.resource.data.emailNotifications is bool
+                    && request.resource.data.smsNotifications is bool
+                    && request.resource.data.soundAndVibration is bool
+                    && request.resource.data.eventReminders is bool
+                    && request.resource.data.allowanceAlerts is bool
+                    && request.resource.data.promotionsAndOffers is bool
 
-  // Kullanıcı yalnızca kendi bildirimlerini okuyabilir.
-  allow read: if request.auth != null
-              && request.auth.uid == userId;
+                    && request.resource.data.updatedAt == request.time;
 
-  // Kullanıcı yalnızca kendisine ait gerçek bir rezervasyon
-  // için confirmation notification oluşturabilir.
-  allow create: if request.auth != null
-                && request.auth.uid == userId
+      allow delete: if false;
+    }
 
-                && request.resource.data.keys().hasOnly([
-                  'title',
-                  'message',
-                  'type',
-                  'isRead',
-                  'hasDetails',
-                  'reservationId',
-                  'createdAt',
-                  'updatedAt'
-                ])
+    // ---------------------------------------------------------
+    // NOTIFICATIONS
+    // ---------------------------------------------------------
 
-                && request.resource.data.title ==
-                   'Event Reservation Confirmed'
+    match /users/{userId}/notifications/{notificationId} {
 
-                && request.resource.data.message ==
-                   'Your private event reservation has been confirmed.'
+      // Kullanıcı yalnızca kendi bildirimlerini okuyabilir.
+      allow read: if request.auth != null
+                  && request.auth.uid == userId;
 
-                && request.resource.data.type == 'event'
+      // Kullanıcı yalnızca kendisine ait gerçek bir rezervasyon
+      // için confirmation notification oluşturabilir.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
 
-                && request.resource.data.isRead == false
-
-                && request.resource.data.hasDetails == true
-
-                && request.resource.data.reservationId is string
-
-                && notificationId ==
-                   request.resource.data.reservationId
-
-                && exists(
-                  /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
-                )
-
-                && get(
-                  /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
-                ).data.userId == request.auth.uid
-
-                && request.resource.data.createdAt == request.time
-
-                && request.resource.data.updatedAt == request.time;
-
-  // Kullanıcı sadece isRead ve updatedAt alanlarını değiştirebilir.
-  allow update: if request.auth != null
-                && request.auth.uid == userId
-
-                && request.resource.data
-                    .diff(resource.data)
-                    .affectedKeys()
-                    .hasOnly([
+                    && request.resource.data.keys().hasOnly([
+                      'title',
+                      'message',
+                      'type',
                       'isRead',
+                      'hasDetails',
+                      'reservationId',
+                      'createdAt',
                       'updatedAt'
                     ])
 
-                && request.resource.data.isRead == true
+                    && request.resource.data.title
+                       == 'Event Reservation Confirmed'
 
-                && request.resource.data.updatedAt == request.time;
+                    && request.resource.data.message
+                       == 'Your private event reservation has been confirmed.'
 
-  // Kullanıcı yalnızca kendi notification document'ını silebilir.
-  allow delete: if request.auth != null
-                && request.auth.uid == userId;
-}
+                    && request.resource.data.type == 'event'
+
+                    && request.resource.data.isRead == false
+
+                    && request.resource.data.hasDetails == true
+
+                    && request.resource.data.reservationId is string
+
+                    && notificationId
+                       == request.resource.data.reservationId
+
+                    && exists(
+                      /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
+                    )
+
+                    && get(
+                      /databases/$(database)/documents/reservations/$(request.resource.data.reservationId)
+                    ).data.userId == request.auth.uid
+
+                    && request.resource.data.createdAt == request.time
+
+                    && request.resource.data.updatedAt == request.time;
+
+      // Kullanıcı sadece isRead ve updatedAt alanlarını değiştirebilir.
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+
+                    && request.resource.data
+                        .diff(resource.data)
+                        .affectedKeys()
+                        .hasOnly([
+                          'isRead',
+                          'updatedAt'
+                        ])
+
+                    && request.resource.data.isRead == true
+
+                    && request.resource.data.updatedAt == request.time;
+
+      // Kullanıcı yalnızca kendi notification document'ını silebilir.
+      allow delete: if request.auth != null
+                    && request.auth.uid == userId;
+    }
 
     // ---------------------------------------------------------
     // MEMBERSHIPS
@@ -199,8 +198,8 @@ match /users/{userId}/notifications/{notificationId} {
 
                     && request.resource.data.validUntil is timestamp
 
-                    && request.resource.data.validUntil >
-                       request.resource.data.startedAt
+                    && request.resource.data.validUntil
+                       > request.resource.data.startedAt
 
                     && request.resource.data.maxGuests is int
 
@@ -283,13 +282,15 @@ match /users/{userId}/notifications/{notificationId} {
       // Şimdilik rezervasyon sonradan değiştirilemez veya silinemez.
       allow update, delete: if false;
     }
-  }
-      // ---------------------------------------------------------
+
+    // ---------------------------------------------------------
     // DOOR ACCESS REQUESTS
     // ---------------------------------------------------------
 
     match /doorAccessRequests/{requestId} {
 
+      // Yalnızca giriş yapmış kullanıcı kendi adına
+      // geçerli bir door access request oluşturabilir.
       allow create: if request.auth != null
 
                     && request.resource.data.keys().hasOnly([
@@ -354,9 +355,12 @@ match /users/{userId}/notifications/{notificationId} {
                          /databases/$(database)/documents/memberships/$(request.auth.uid)
                        ).data.maxGuests;
 
+      // Kullanıcı yalnızca kendi access request'ini okuyabilir.
       allow read: if request.auth != null
                   && resource.data.userId == request.auth.uid;
 
+      // Client tarafı request üzerinde değişiklik yapamaz.
       allow update, delete: if false;
     }
+  }
 }
