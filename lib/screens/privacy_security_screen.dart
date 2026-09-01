@@ -204,12 +204,10 @@ class _PrivacySecurityScreenState extends State<PrivacySecurityScreen> {
         default:
           return 'Account could not be deleted (${error.code}).';
       }
-    } on FirebaseException catch (error) {
-      if (error.code == 'permission-denied') {
-        return 'Some account data could not be deleted due to permissions.';
-      }
-
-      return 'Account data could not be deleted (${error.code}).';
+    } on AccountDeletionException catch (error) {
+      return 'Account deletion stopped while deleting ${error.stage}. '
+          'Some earlier data may already be deleted. '
+          'You can safely try again.';
     } catch (_) {
       return 'Account could not be deleted. Please try again.';
     } finally {

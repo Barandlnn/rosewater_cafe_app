@@ -1,6 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+class AccountDeletionException implements Exception {
+  const AccountDeletionException({required this.stage, required this.cause});
+
+  final String stage;
+  final Object cause;
+
+  @override
+  String toString() {
+    return 'Account deletion failed during $stage: $cause';
+  }
+}
+
 class AccountService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -41,25 +53,59 @@ class AccountService {
     // FIRESTORE CLEANUP
     // ---------------------------------------------------------
 
-    await _deleteNotifications(uid);
+    await _runDeletionStage(
+      stage: 'notifications',
+      action: () => _deleteNotifications(uid),
+    );
 
-    await _deleteNotificationSettings(uid);
+    await _runDeletionStage(
+      stage: 'notification settings',
+      action: () => _deleteNotificationSettings(uid),
+    );
 
-    await _deleteUsage(uid);
+    await _runDeletionStage(stage: 'usage', action: () => _deleteUsage(uid));
 
-    await _deleteReservations(uid);
+    await _runDeletionStage(
+      stage: 'reservations',
+      action: () => _deleteReservations(uid),
+    );
 
-    await _deleteDoorAccessRequests(uid);
+    await _runDeletionStage(
+      stage: 'door access requests',
+      action: () => _deleteDoorAccessRequests(uid),
+    );
 
-    await _deleteMembership(uid);
+    await _runDeletionStage(
+      stage: 'membership',
+      action: () => _deleteMembership(uid),
+    );
 
-    await _deleteUserProfile(uid);
+    await _runDeletionStage(
+      stage: 'user profile',
+      action: () => _deleteUserProfile(uid),
+    );
 
     // ---------------------------------------------------------
     // FIREBASE AUTH
     // ---------------------------------------------------------
 
-    await user.delete();
+    await _runDeletionStage(
+      stage: 'Firebase Authentication account',
+      action: user.delete,
+    );
+  }
+
+  static Future<void> _runDeletionStage({
+    required String stage,
+    required Future<void> Function() action,
+  }) async {
+    try {
+      await action();
+    } on FirebaseAuthException {
+      rethrow;
+    } catch (error) {
+      throw AccountDeletionException(stage: stage, cause: error);
+    }
   }
 
   static Future<void> _deleteNotifications(String uid) async {
@@ -72,13 +118,12 @@ class AccountService {
   }
 
   static Future<void> _deleteNotificationSettings(String uid) async {
-    final document = _firestore
+    await _firestore
         .collection('users')
         .doc(uid)
         .collection('settings')
-        .doc('notifications');
-
-    await document.delete();
+        .doc('notifications')
+        .delete();
   }
 
   static Future<void> _deleteUsage(String uid) async {
