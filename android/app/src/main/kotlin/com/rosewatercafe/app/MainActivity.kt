@@ -1,4 +1,4 @@
-package com.example.rosewater_cafe_app
+package com.rosewatercafe.app
 
 import io.flutter.embedding.android.FlutterActivity
 

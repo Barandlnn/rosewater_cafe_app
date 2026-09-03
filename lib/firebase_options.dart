@@ -51,12 +51,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCPFbLWIOU1kmmh85imKY-eIgnPGHyfqN0',
-    appId: '1:985930394568:android:f0160cecd933641b28aefd',
+    appId: '1:985930394568:android:2c2e596ea9b4df8628aefd',
     messagingSenderId: '985930394568',
     projectId: 'rosewater-cafe-app',
     storageBucket: 'rosewater-cafe-app.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBBEcVdTMYd2cK0C7J7YQEu0AQlI9lM9qI',
     appId: '1:985930394568:ios:8d9ada8e5339622428aefd',

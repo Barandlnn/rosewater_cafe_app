@@ -4,7 +4,7 @@
       "android": {
         "default": {
           "projectId": "rosewater-cafe-app",
-          "appId": "1:985930394568:android:f0160cecd933641b28aefd",
+          "appId": "1:985930394568:android:2c2e596ea9b4df8628aefd",
           "fileOutput": "android/app/google-services.json"
         }
       },
@@ -12,7 +12,7 @@
         "lib/firebase_options.dart": {
           "projectId": "rosewater-cafe-app",
           "configurations": {
-            "android": "1:985930394568:android:f0160cecd933641b28aefd",
+            "android": "1:985930394568:android:2c2e596ea9b4df8628aefd",
             "ios": "1:985930394568:ios:8d9ada8e5339622428aefd",
             "macos": "1:985930394568:ios:8d9ada8e5339622428aefd",
             "web": "1:985930394568:web:957a860781b19c1128aefd",
