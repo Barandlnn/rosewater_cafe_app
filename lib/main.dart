@@ -6,18 +6,34 @@ import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 
+const bool _useWebAppCheckDebug = bool.fromEnvironment(
+  'APP_CHECK_WEB_DEBUG',
+  defaultValue: false,
+);
+
+const String _webAppCheckDebugToken = String.fromEnvironment(
+  'APP_CHECK_DEBUG_TOKEN',
+  defaultValue: '',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  if (kIsWeb && _useWebAppCheckDebug && _webAppCheckDebugToken.isEmpty) {
+    throw StateError(
+      'APP_CHECK_DEBUG_TOKEN is required when APP_CHECK_WEB_DEBUG=true.',
+    );
+  }
+
   await FirebaseAppCheck.instance.activate(
-    providerAndroid: kDebugMode
-        ? const AndroidDebugProvider()
-        : const AndroidPlayIntegrityProvider(),
-    providerWeb: ReCaptchaEnterpriseProvider(
-      '6LfW66YtAAAAAKlUVxt6KiAqOWK5lHW8dw2ES-v4',
-    ),
+    providerAndroid: const AndroidPlayIntegrityProvider(),
+    providerWeb: _useWebAppCheckDebug
+        ? WebDebugProvider(debugToken: _webAppCheckDebugToken)
+        : ReCaptchaEnterpriseProvider(
+            '6LfW66YtAAAAAKlUVxt6KiAqOWK5lHW8dw2ES-v4',
+          ),
   );
   runApp(const RosewaterApp());
 }
