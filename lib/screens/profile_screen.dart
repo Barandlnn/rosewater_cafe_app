@@ -21,9 +21,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _memberName = 'Demo User';
-  String _email = '1@gmail.com';
-  String _phone = '+1 (555) 123-4567';
+  String _memberName = '';
+  String _email = '';
+  String _phone = '';
   String _memberId = '-';
   String _membershipPlan = '-';
   String _validUntil = '-';

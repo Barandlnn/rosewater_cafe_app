@@ -22,7 +22,7 @@ class MemberDashboardScreen extends StatefulWidget {
 }
 
 class _MemberDashboardScreenState extends State<MemberDashboardScreen> {
-  String _memberName = 'Demo';
+  String _memberName = '';
   String _memberId = '-';
   String _membershipPlan = '-';
   String _validUntil = '-';

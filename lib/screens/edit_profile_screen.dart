@@ -12,11 +12,11 @@ class EditProfileScreen extends StatefulWidget {
 
   const EditProfileScreen({
     super.key,
-    this.initialName = 'Demo User',
-    this.initialEmail = '1@gmail.com',
-    this.initialPhone = '+1 (555) 123-4567',
-    this.memberId = '1768389549045',
-    this.membershipPlan = 'Premium',
+    this.initialName = '',
+    this.initialEmail = '',
+    this.initialPhone = '',
+    this.memberId = '',
+    this.membershipPlan = '',
   });
 
   @override

@@ -46,3 +46,8 @@ app.*.map.json
 
 # Local Firebase App Check debug configuration
 config/app_check_debug.json
+
+# Android signing material must remain local.
+*.jks
+*.keystore
+key.properties
